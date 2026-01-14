@@ -129,19 +129,34 @@ require_once $header_file;
                         </div>
                         <div class="card-body text-center">
                             <?php 
-                            // Determina quale immagine mostrare
-                            $logo_src = '';
-                            $logo_alt = htmlspecialchars($brand['company_name']);
-                            
-                            if (!empty($brand['logo'])) {
-                                // Se il brand ha caricato un logo personalizzato
-                                $logo_src = "/uploads/brands/" . htmlspecialchars($brand['logo']);
-                            } else {
-                                // Se NON ha un logo personalizzato, mostra il placeholder
-                                $logo_src = "/uploads/placeholder/brand-placeholder.png";
-                                $logo_alt = "Placeholder - " . $logo_alt;
-                            }
-                            ?>
+// Determina quale immagine mostrare
+$logo_src = '';
+$logo_alt = htmlspecialchars($brand['company_name']);
+
+if (!empty($brand['logo'])) {
+    // Se il brand ha caricato un logo personalizzato
+    $logo_value = trim($brand['logo']);
+    
+    // Normalizza il percorso - rimuovi qualsiasi duplicato "uploads/brands/"
+    $logo_value = str_replace('uploads/brands/uploads/brands/', 'uploads/brands/', $logo_value);
+    
+    // Se non inizia già con "uploads/brands/", aggiungilo
+    if (strpos($logo_value, 'uploads/brands/') !== 0) {
+        $logo_value = 'uploads/brands/' . $logo_value;
+    }
+    
+    // Assicurati che inizi con "/"
+    if (strpos($logo_value, '/') !== 0) {
+        $logo_value = '/' . $logo_value;
+    }
+    
+    $logo_src = htmlspecialchars($logo_value);
+} else {
+    // Se NON ha un logo personalizzato, mostra il placeholder
+    $logo_src = "/uploads/placeholder/brand-placeholder.png";
+    $logo_alt = "Placeholder - " . $logo_alt;
+}
+?>
                             
                             <img src="<?php echo $logo_src; ?>" 
                                  class="rounded mb-3" 
@@ -236,32 +251,40 @@ require_once $header_file;
 
                     <!-- Informazioni -->
                     <div class="card mb-4">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="card-title mb-0">Informazioni</h5>
-                        </div>
-                        <div class="card-body">
-                            <?php if (!empty($brand['contact_person'])): ?>
-                                <div class="mb-3">
-                                    <strong>Persona di Contatto:</strong>
-                                    <span class="float-end"><?php echo htmlspecialchars($brand['contact_person']); ?></span>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($brand['phone'])): ?>
-                                <div class="mb-3">
-                                    <strong>Telefono:</strong>
-                                    <span class="float-end"><?php echo htmlspecialchars($brand['phone']); ?></span>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="mb-3">
-                                <strong>Membro dal:</strong>
-                                <span class="float-end">
-                                    <?php echo !empty($brand['user_created_at']) ? date('d/m/Y', strtotime($brand['user_created_at'])) : 'N/A'; ?>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+    <div class="card-header bg-success text-white">
+        <h5 class="card-title mb-0">Informazioni</h5>
+    </div>
+    <div class="card-body">
+        <?php if (!empty($brand['contact_person'])): ?>
+            <div class="mb-3">
+                <strong>Persona di Contatto:</strong>
+                <span class="float-end"><?php echo htmlspecialchars($brand['contact_person']); ?></span>
+            </div>
+        <?php endif; ?>
+        
+        <?php if (!empty($brand['phone'])): ?>
+            <div class="mb-3">
+                <strong>Telefono:</strong>
+                <span class="float-end"><?php echo htmlspecialchars($brand['phone']); ?></span>
+            </div>
+        <?php endif; ?>
+        
+         <!-- Nazione -->
+        <?php if (!empty($brand['nationality'])): ?>
+            <div class="mb-3">
+                <strong>Nazione:</strong>
+                <span class="float-end"><?php echo htmlspecialchars($brand['nationality']); ?></span>
+            </div>
+        <?php endif; ?>
+        
+        <div class="mb-3">
+            <strong>Membro dal:</strong>
+            <span class="float-end">
+                <?php echo !empty($brand['user_created_at']) ? date('d/m/Y', strtotime($brand['user_created_at'])) : 'N/A'; ?>
+            </span>
+        </div>
+    </div>
+</div>
 
                     <!-- Contatta Brand -->
                     <div class="card">

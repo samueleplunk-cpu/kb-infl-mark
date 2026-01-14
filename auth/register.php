@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success = 'Registrazione completata con successo! Ora puoi effettuare il login.';
                     
                     // Reindirizza al login dopo 3 secondi
-                    header("refresh:3;url=".BASE_URL."/auth/login.php?registered=1");
+                    header("refresh:3;url=".BASE_URL."auth/login.php?registered=1");
                     
                 } catch (Exception $e) {
                     // ROLLBACK IN CASO DI ERRORE
@@ -258,8 +258,8 @@ include '../includes/header.php';
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="terms" name="terms" required <?php echo isset($_POST['terms']) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="terms">
-                            Accetto i <a href="<?php echo BASE_URL; ?>/terms.php" target="_blank">Termini di Servizio</a> 
-                            e l'<a href="<?php echo BASE_URL; ?>/privacy.php" target="_blank">Informativa Privacy</a>
+                            Accetto i <a href="<?php echo BASE_URL; ?>terms.php" target="_blank">Termini di Servizio</a> 
+                            e l'<a href="<?php echo BASE_URL; ?>privacy.php" target="_blank">Informativa Privacy</a>
                         </label>
                     </div>
                     
@@ -268,7 +268,7 @@ include '../includes/header.php';
                 
                 <div class="mt-4 text-center">
                     <p>Hai già un account? 
-                        <a href="<?php echo BASE_URL; ?>/auth/login.php" class="text-decoration-none">
+                        <a href="/auth/login.php" class="text-decoration-none">
                             Accedi qui
                         </a>
                     </p>

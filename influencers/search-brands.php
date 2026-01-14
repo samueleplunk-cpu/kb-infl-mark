@@ -351,6 +351,15 @@ if ($influencer_id && !empty($brands)) {
                                                 ?>
                                             </p>
                                         <?php endif; ?>
+										
+										<!-- Campo Nazione -->
+<?php if (!empty($brand['nationality'])): ?>
+    <div class="mb-2">
+        <small class="text-muted d-block">
+            <strong>Nazione:</strong> <?php echo htmlspecialchars($brand['nationality']); ?>
+        </small>
+    </div>
+<?php endif; ?>
 
                                         <!-- Contatti e Info -->
                                         <div class="mb-2">

@@ -270,8 +270,8 @@ function hideAdminCommunication(commId) {
 <span class="float-end badge bg-info"><?php echo htmlspecialchars_decode($brand['industry'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
-                                <strong>Sito Web:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($brand['website'] ?? 'Non specificato'); ?></span>
+                                <strong>Nazione:</strong>
+                                <span class="float-end"><?php echo htmlspecialchars($brand['nationality'] ?? 'Non specificato'); ?></span>
                             </div>
                         </div>
                     </div>
@@ -293,7 +293,7 @@ $total = 5;
 if (!empty($brand['company_name'])) $completed++;
 if (!empty($brand['industry'])) $completed++;
 if (!empty($brand['description'])) $completed++;
-if (!empty($brand['website'])) $completed++;
+if (!empty($brand['nationality'])) $completed++;
 if (!empty($brand['logo']) && $logo_exists) $completed++;
 echo $completed . '/' . $total;
                                     ?>

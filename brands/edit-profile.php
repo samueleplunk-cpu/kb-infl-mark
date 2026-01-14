@@ -302,9 +302,9 @@ require_once $header_file;
 
                             <!-- NUOVO CAMPO: NAZIONALITÀ (sostituisce il sito web) -->
                             <div class="mb-3">
-                                <label for="nationality" class="form-label">Nazionalità *</label>
+                                <label for="nationality" class="form-label">Nazione *</label>
                                 <select class="form-select" id="nationality" name="nationality" required>
-                                    <option value="">Seleziona una nazionalità</option>
+                                    <option value="">Seleziona una nazione</option>
                                     <?php foreach ($countries as $country): ?>
                                         <option value="<?php echo htmlspecialchars($country); ?>" 
                                             <?php echo ($brand['nationality'] ?? '') === $country ? 'selected' : ''; ?>>
