@@ -172,9 +172,17 @@ function get_user_tickets($user_id, $user_type, $status = null, $limit = 50) {
         
         $params = [$user_id, $user_type];
         
-        if ($status) {
-            $sql .= " AND t.status = ?";
-            $params[] = $status;
+        // LOGICA MOLTO CHIARA:
+        // Solo se $status è specificato E non è 'all'
+        if ($status && $status !== 'all') {
+            if ($status === 'open') {
+                $sql .= " AND (t.status = 'open' OR t.status = 'in_progress')";
+            } elseif ($status === 'closed') {
+                $sql .= " AND (t.status = 'closed' OR t.status = 'resolved')";
+            } else {
+                $sql .= " AND t.status = ?";
+                $params[] = $status;
+            }
         }
         
         $sql .= " GROUP BY t.id ORDER BY t.updated_at DESC LIMIT ?";
@@ -379,6 +387,33 @@ function count_open_tickets($user_id = null, $user_type = null) {
         return $result['count'] ?? 0;
     } catch (PDOException $e) {
         return 0;
+    }
+}
+
+/**
+ * Formatta il tempo trascorso in modo leggibile
+ */
+function time_ago($timestamp) {
+    if (empty($timestamp)) {
+        return 'mai';
+    }
+    
+    $now = new DateTime();
+    $past = new DateTime($timestamp);
+    $diff = $now->diff($past);
+    
+    if ($diff->y > 0) {
+        return $diff->y == 1 ? '1 anno fa' : $diff->y . ' anni fa';
+    } elseif ($diff->m > 0) {
+        return $diff->m == 1 ? '1 mese fa' : $diff->m . ' mesi fa';
+    } elseif ($diff->d > 0) {
+        return $diff->d == 1 ? '1 giorno fa' : $diff->d . ' giorni fa';
+    } elseif ($diff->h > 0) {
+        return $diff->h == 1 ? '1 ora fa' : $diff->h . ' ore fa';
+    } elseif ($diff->i > 0) {
+        return $diff->i == 1 ? '1 minuto fa' : $diff->i . ' minuti fa';
+    } else {
+        return 'pochi secondi fa';
     }
 }
 ?>

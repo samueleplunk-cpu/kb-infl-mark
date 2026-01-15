@@ -376,153 +376,140 @@ require_once $header_file;
 
         <!-- Lista Campagne -->
         <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Tutte le Campagne</h5>
-            </div>
-            <div class="card-body">
-                <?php if (empty($campaigns)): ?>
-                    <div class="text-center py-4">
-                        <h4>Nessuna campagna trovata</h4>
-                        <p class="text-muted">
-                            <?php if (!empty($search_name) || !empty($filter_category) || !empty($filter_status)): ?>
-                                Prova a modificare i filtri di ricerca
-                            <?php else: ?>
-                                Inizia creando la tua prima campagna per trovare influencer
-                            <?php endif; ?>
-                        </p>
-                        <?php if (empty($search_name) && empty($filter_category) && empty($filter_status)): ?>
-                            <a href="create-campaign.php" class="btn btn-primary">Crea Prima Campagna</a>
-                        <?php else: ?>
-                            <a href="campaigns.php" class="btn btn-outline-primary">Azzera Filtri</a>
-                        <?php endif; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Nome Campagna</th>
-                                    <th>Budget</th>
-                                    <th>Categoria</th>
-                                    <th>Stato</th>
-                                    <th>Scadenza</th>
-                                    <th>Influencer</th>
-                                    <th>Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($campaigns as $campaign): 
-                                    // Qualsiasi campagna con deadline passata è considerata scaduta
-                                    $has_expired_deadline = $campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time();
-                                    $is_expired = (isset($campaign['is_expired']) && $campaign['is_expired'] == 1) || 
-                                                 $campaign['status'] === 'expired' || 
-                                                 $has_expired_deadline;
-                                    
-                                    if ($is_expired) {
-                                        $effective_status = 'expired';
-                                    } else {
-                                        $effective_status = $campaign['status'];
-                                    }
-                                ?>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="me-2">
-                                                    <?php if (!$campaign['is_public']): ?>
-                                                        <span class="badge bg-secondary" title="Campagna privata">
-                                                            <i class="fas fa-lock fa-xs"></i>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div>
-                                                    <strong><?php echo htmlspecialchars($campaign['name']); ?></strong>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <strong>€<?php echo number_format($campaign['budget'], 2); ?></strong>
-                                        </td>
-                                        <td>
-                                            <div>
-                                                <strong><?php echo htmlspecialchars(ucwords(strtolower($campaign['niche']))); ?></strong>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <?php
-                                            $status_badges = [
-                                                'draft' => ['class' => 'secondary', 'icon' => 'fas fa-edit', 'text' => 'Bozza'],
-                                                'active' => ['class' => 'success', 'icon' => 'fas fa-play', 'text' => 'Attiva'],
-                                                'paused' => ['class' => 'warning', 'icon' => 'fas fa-pause', 'text' => 'In pausa'],
-                                                'completed' => ['class' => 'info', 'icon' => 'fas fa-check', 'text' => 'Completata'],
-                                                'expired' => ['class' => 'danger', 'icon' => 'fas fa-clock', 'text' => 'Scaduta'],
-                                                'cancelled' => ['class' => 'dark', 'icon' => 'fas fa-times', 'text' => 'Cancellata']
-                                            ];
-                                            
-                                            $status_config = $status_badges[$effective_status] ?? $status_badges['draft'];
-                                            ?>
-                                            <span class="badge bg-<?php echo $status_config['class']; ?>">
-                                                <i class="<?php echo $status_config['icon']; ?> me-1"></i>
-                                                <?php echo $status_config['text']; ?>
-                                            </span>
-                                            
-                                            <?php if ($effective_status === 'paused' && !$is_expired && $campaign['deadline_date']): ?>
-                                                <br>
-                                                <small class="text-warning">
-                                                    <i class="fas fa-clock me-1"></i>
-                                                    Scade il <?php echo date('d/m/Y', strtotime($campaign['deadline_date'])); ?>
-                                                </small>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php if ($campaign['deadline_date']): ?>
-                                                <small class="<?php echo strtotime($campaign['deadline_date']) < time() ? 'text-danger fw-bold' : 'text-muted'; ?>">
-                                                    <?php echo date('d/m/Y', strtotime($campaign['deadline_date'])); ?>
-                                                    <?php if (strtotime($campaign['deadline_date']) < time()): ?>
-                                                        <br><span class="badge bg-danger">Scaduta</span>
-                                                    <?php endif; ?>
-                                                </small>
-                                            <?php else: ?>
-                                                <span class="text-muted small">Nessuna</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <small>
-                                                <?php echo $campaign['accepted_count']; ?> accettati / 
-                                                <?php echo $campaign['influencer_count']; ?> totali
-                                            </small>
-                                        </td>
-                                        <td>
-    <div class="btn-group btn-group-sm">
-        <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
-           class="btn btn-outline-primary me-1" title="Dettagli campagna">
-            <i class="fas fa-eye"></i>
-        </a>
-        
-        <?php if ($campaign['status'] === 'draft' && !$is_expired): ?>
-            <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
-               class="btn btn-outline-secondary me-1" title="Modifica campagna">
-                <i class="fas fa-edit"></i>
-            </a>
-        <?php endif; ?>
-        
-        <!-- PULSANTE MODIFICA -->
-        <?php if ($campaign['status'] === 'active' && !$is_expired): ?>
-            <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
-               class="btn btn-outline-secondary me-1" title="Modifica campagna">
-                <i class="fas fa-edit"></i>
-            </a>
-        <?php endif; ?>
-        
-        <!-- PULSANTE ELIMINA -->
-        <button type="button" class="btn btn-outline-danger" 
-                data-bs-toggle="modal" 
-                data-bs-target="#deleteModal<?php echo $campaign['id']; ?>"
-                title="Elimina campagna">
-            <i class="fas fa-trash"></i>
-        </button>
+    <div class="card-header">
+        <h5 class="card-title mb-0">Tutte le Campagne</h5>
     </div>
-</td>
-                                    </tr>
+    <div class="card-body">
+        <?php if (empty($campaigns)): ?>
+            <div class="text-center py-4">
+                <h4>Nessuna campagna trovata</h4>
+                <p class="text-muted">
+                    <?php if (!empty($search_name) || !empty($filter_category) || !empty($filter_status)): ?>
+                        Prova a modificare i filtri di ricerca
+                    <?php else: ?>
+                        Inizia creando la tua prima campagna per trovare influencer
+                    <?php endif; ?>
+                </p>
+                <?php if (empty($search_name) && empty($filter_category) && empty($filter_status)): ?>
+                    <a href="create-campaign.php" class="btn btn-primary">Crea Prima Campagna</a>
+                <?php else: ?>
+                    <a href="campaigns.php" class="btn btn-outline-primary">Azzera Filtri</a>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nome Campagna</th>
+                            <th>Budget</th>
+                            <th>Categoria</th>
+                            <th>Stato</th>
+                            <th>Influencer</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($campaigns as $campaign): 
+                            // Qualsiasi campagna con deadline passata è considerata scaduta
+                            $has_expired_deadline = $campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time();
+                            $is_expired = (isset($campaign['is_expired']) && $campaign['is_expired'] == 1) || 
+                                         $campaign['status'] === 'expired' || 
+                                         $has_expired_deadline;
+                            
+                            if ($is_expired) {
+                                $effective_status = 'expired';
+                            } else {
+                                $effective_status = $campaign['status'];
+                            }
+                        ?>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-2">
+                                            <?php if (!$campaign['is_public']): ?>
+                                                <span class="badge bg-secondary" title="Campagna privata">
+                                                    <i class="fas fa-lock fa-xs"></i>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <strong><?php echo htmlspecialchars($campaign['name']); ?></strong>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>€<?php echo number_format($campaign['budget'], 2); ?></strong>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong><?php echo htmlspecialchars(ucwords(strtolower($campaign['niche']))); ?></strong>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php
+                                    $status_badges = [
+                                        'draft' => ['class' => 'secondary', 'icon' => 'fas fa-edit', 'text' => 'Bozza'],
+                                        'active' => ['class' => 'success', 'icon' => 'fas fa-play', 'text' => 'Attiva'],
+                                        'paused' => ['class' => 'warning', 'icon' => 'fas fa-pause', 'text' => 'In pausa'],
+                                        'completed' => ['class' => 'info', 'icon' => 'fas fa-check', 'text' => 'Completata'],
+                                        'expired' => ['class' => 'danger', 'icon' => 'fas fa-clock', 'text' => 'Scaduta'],
+                                        'cancelled' => ['class' => 'dark', 'icon' => 'fas fa-times', 'text' => 'Cancellata']
+                                    ];
+                                    
+                                    $status_config = $status_badges[$effective_status] ?? $status_badges['draft'];
+                                    ?>
+                                    <span class="badge bg-<?php echo $status_config['class']; ?>">
+                                        <i class="<?php echo $status_config['icon']; ?> me-1"></i>
+                                        <?php echo $status_config['text']; ?>
+                                    </span>
+                                    
+                                    <?php if ($effective_status === 'paused' && !$is_expired && $campaign['deadline_date']): ?>
+                                        <br>
+                                        <small class="text-warning">
+                                            <i class="fas fa-clock me-1"></i>
+                                            Scade il <?php echo date('d/m/Y', strtotime($campaign['deadline_date'])); ?>
+                                        </small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <small>
+                                        <?php echo $campaign['accepted_count']; ?> accettati / 
+                                        <?php echo $campaign['influencer_count']; ?> totali
+                                    </small>
+                                </td>
+                                <td>
+<div class="btn-group btn-group-sm">
+    <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
+       class="btn btn-outline-primary me-1" title="Dettagli campagna">
+        <i class="fas fa-eye"></i>
+    </a>
+    
+    <?php if ($campaign['status'] === 'draft' && !$is_expired): ?>
+        <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
+           class="btn btn-outline-secondary me-1" title="Modifica campagna">
+            <i class="fas fa-edit"></i>
+        </a>
+    <?php endif; ?>
+    
+    <!-- PULSANTE MODIFICA -->
+    <?php if ($campaign['status'] === 'active' && !$is_expired): ?>
+        <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
+           class="btn btn-outline-secondary me-1" title="Modifica campagna">
+            <i class="fas fa-edit"></i>
+        </a>
+    <?php endif; ?>
+    
+    <!-- PULSANTE ELIMINA -->
+    <button type="button" class="btn btn-outline-danger" 
+            data-bs-toggle="modal" 
+            data-bs-target="#deleteModal<?php echo $campaign['id']; ?>"
+            title="Elimina campagna">
+        <i class="fas fa-trash"></i>
+    </button>
+</div>
+                                </td>
+                            </tr>
 
                                     <!-- Modal Eliminazione Campagna -->
                                     <div class="modal fade" id="deleteModal<?php echo $campaign['id']; ?>" tabindex="-1" 
