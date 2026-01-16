@@ -158,11 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             
                             <div class="mb-4">
-                                <label for="attachment" class="form-label">Allegato (facoltativo)</label>
+                                <label for="attachment" class="form-label">Allegato</label>
                                 <input type="file" class="form-control" id="attachment" name="attachment" 
                                        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                                 <div class="form-text">
-                                    <i class="bi bi-info-circle"></i> Puoi allegare un file (max 2 MB). Tipi supportati: immagini (JPG, PNG, GIF, WebP), PDF, documenti Word/Excel, file di testo.
+                                    <i class="bi bi-info-circle"></i> Puoi allegare un file (max 2 MB). Tipi supportati: JPG, PNG, PDF.
                                 </div>
                             </div>
                             
