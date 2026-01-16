@@ -68,12 +68,7 @@ try {
 <?php include dirname(__DIR__) . '/includes/header.php'; ?>
 
 <div class="container py-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="index.php">Ticket</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Ticket #<?php echo $ticket_id; ?></li>
-        </ol>
-    </nav>
+    <!-- Breadcrumb rimosso come richiesto -->
     
     <div class="row">
         <div class="col-lg-8">
@@ -81,23 +76,10 @@ try {
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-0"><?php echo htmlspecialchars($ticket['subject']); ?></h4>
-                        <small class="text-muted">
-                            Creato il <?php echo date('d/m/Y H:i', strtotime($ticket['created_at'])); ?>
-                            da <?php echo htmlspecialchars($ticket['user_name'] ?? 'Utente'); ?>
-                        </small>
+                        <!-- Rimossa la riga con data e creatore -->
                     </div>
                     <div>
-                        <span class="badge bg-secondary me-2">
-                            <?php 
-                                $priority_names = [
-                                    'low' => 'Bassa',
-                                    'medium' => 'Media',
-                                    'high' => 'Alta',
-                                    'urgent' => 'Urgente'
-                                ];
-                                echo $priority_names[$ticket['priority']] ?? $ticket['priority'];
-                            ?>
-                        </span>
+                        <!-- Rimosso il badge della priorità -->
                         <span class="badge 
                             <?php 
                                 switch($ticket['status']) {
@@ -186,7 +168,7 @@ try {
                                                   rows="4" maxlength="5000" required
                                                   placeholder="Scrivi la tua risposta qui..."></textarea>
                                         <small class="text-muted">
-                                            Massimo 5000 caratteri. Il nostro staff risponderà il prima possibile.
+                                            Massimo 5000 caratteri.
                                         </small>
                                     </div>
                                     
@@ -203,7 +185,7 @@ try {
                                         </div>
                                         <div>
                                             <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-send"></i> Invia Risposta
+                                                <i class="bi bi-send"></i> Invia risposta
                                             </button>
                                         </div>
                                     </div>
@@ -224,25 +206,64 @@ try {
         </div>
         
         <div class="col-lg-4">
+            <!-- Sezione Informazioni spostata prima di Azioni Ticket -->
             <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Informazioni</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Creato da:</dt>
+                        <dd class="col-sm-7"><?php echo htmlspecialchars($ticket['user_name']); ?></dd>
+                        
+                        <dt class="col-sm-5">ID Ticket:</dt>
+                        <dd class="col-sm-7">#<?php echo $ticket_id; ?></dd>
+                        
+                        <dt class="col-sm-5">Priorità:</dt>
+                        <dd class="col-sm-7">
+                            <?php 
+                                $priority_names = [
+                                    'low' => 'Bassa',
+                                    'medium' => 'Media',
+                                    'high' => 'Alta',
+                                    'urgent' => 'Urgente'
+                                ];
+                                echo $priority_names[$ticket['priority']] ?? $ticket['priority'];
+                            ?>
+                        </dd>
+                        
+                        <dt class="col-sm-5">Creato il:</dt>
+                        <dd class="col-sm-7"><?php echo date('d/m/Y - H:i', strtotime($ticket['created_at'])); ?></dd>
+                        
+                        <dt class="col-sm-5">Aggiornato il:</dt>
+                        <dd class="col-sm-7"><?php echo date('d/m/Y - H:i', strtotime($ticket['updated_at'])); ?></dd>
+                        
+                        <dt class="col-sm-5">Numero messaggi:</dt>
+                        <dd class="col-sm-7"><?php echo count($messages); ?></dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <!-- Sezione Azioni Ticket spostata dopo Informazioni -->
+            <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Azioni Ticket</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <a href="index.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Torna alla Lista
+                            <i class="bi bi-arrow-left"></i> Torna alla lista
                         </a>
                         
                         <?php if (!in_array($ticket['status'], ['closed', 'resolved'])): ?>
                             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#resolveModal">
-                                <i class="bi bi-check-circle"></i> Segna come Risolto
+                                <i class="bi bi-check-circle"></i> Segna come risolto
                             </button>
                             
                             <?php if ($user_type !== 'admin'): ?>
                                 <a href="close.php?id=<?php echo $ticket_id; ?>" class="btn btn-outline-danger" 
                                    onclick="return confirm('Sei sicuro di voler chiudere questo ticket?');">
-                                    <i class="bi bi-x-circle"></i> Chiudi Ticket
+                                    <i class="bi bi-x-circle"></i> Chiudi ticket
                                 </a>
                             <?php endif; ?>
                         <?php else: ?>
@@ -251,38 +272,6 @@ try {
                             </button>
                         <?php endif; ?>
                     </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Informazioni</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-5">ID Ticket:</dt>
-                        <dd class="col-sm-7">#<?php echo $ticket_id; ?></dd>
-                        
-                        <dt class="col-sm-5">Creato:</dt>
-                        <dd class="col-sm-7"><?php echo date('d/m/Y H:i', strtotime($ticket['created_at'])); ?></dd>
-                        
-                        <dt class="col-sm-5">Ultimo aggiornamento:</dt>
-                        <dd class="col-sm-7"><?php echo date('d/m/Y H:i', strtotime($ticket['updated_at'])); ?></dd>
-                        
-                        <dt class="col-sm-5">Creato da:</dt>
-                        <dd class="col-sm-7"><?php echo htmlspecialchars($ticket['user_name']); ?></dd>
-                        
-                        <dt class="col-sm-5">Tipo utente:</dt>
-                        <dd class="col-sm-7">
-                            <span class="badge 
-                                <?php echo $ticket['user_type'] === 'brand' ? 'bg-primary' : 'bg-success'; ?>">
-                                <?php echo $ticket['user_type'] === 'brand' ? 'Brand' : 'Influencer'; ?>
-                            </span>
-                        </dd>
-                        
-                        <dt class="col-sm-5">Numero messaggi:</dt>
-                        <dd class="col-sm-7"><?php echo count($messages); ?></dd>
-                    </dl>
                 </div>
             </div>
         </div>
@@ -294,7 +283,7 @@ try {
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Segna come Risolto</h5>
+                <h5 class="modal-title">Segna come risolto</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -304,7 +293,7 @@ try {
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
                 <a href="close.php?id=<?php echo $ticket_id; ?>&status=resolved" class="btn btn-success">
-                    <i class="bi bi-check-circle"></i> Segna come Risolto
+                    <i class="bi bi-check-circle"></i> Segna come risolto
                 </a>
             </div>
         </div>

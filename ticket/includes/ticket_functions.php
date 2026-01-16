@@ -27,7 +27,7 @@ function can_access_ticket($ticket_id, $user_id, $user_type) {
 /**
  * Crea un nuovo ticket
  */
-function create_ticket($user_id, $user_type, $subject, $message, $priority = 'medium') {
+function create_ticket($user_id, $user_type, $subject, $message, $priority = 'medium', $attachment_path = null) {
     global $pdo;
     
     try {
@@ -48,11 +48,11 @@ function create_ticket($user_id, $user_type, $subject, $message, $priority = 'me
         
         // Aggiungi il messaggio iniziale come primo messaggio
         $stmt_msg = $pdo->prepare("
-            INSERT INTO ticket_messages (ticket_id, user_id, user_type, message, created_at)
-            VALUES (?, ?, ?, ?, NOW())
+            INSERT INTO ticket_messages (ticket_id, user_id, user_type, message, attachment, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
         ");
         
-        $stmt_msg->execute([$ticket_id, $user_id, $user_type, $message]);
+        $stmt_msg->execute([$ticket_id, $user_id, $user_type, $message, $attachment_path]);
         
         // Crea notifica per lo staff
         create_ticket_notification($ticket_id, "Nuovo ticket creato: " . $subject, null, null);

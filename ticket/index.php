@@ -69,7 +69,7 @@ $unread_ticket_notifications = get_unread_ticket_notifications($user_id, $user_t
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">I Tuoi Ticket</h5>
+                        <h5 class="card-title mb-0">I miei Ticket</h5>
                         <div class="btn-group" role="group">
                             <a href="?status=all" class="btn btn-sm <?php echo $status === 'all' ? 'btn-primary' : 'btn-outline-primary'; ?>">Tutti</a>
                             <a href="?status=open" class="btn btn-sm <?php echo $status === 'open' ? 'btn-primary' : 'btn-outline-primary'; ?>">Aperti</a>
@@ -169,29 +169,15 @@ $unread_ticket_notifications = get_unread_ticket_notifications($user_id, $user_t
 
 <!-- Fix per i dropdown delle notifiche e profilo -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     // Inizializza tutti i dropdown di Bootstrap manualmente
-    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
     var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-        return new bootstrap.Dropdown(dropdownToggleEl)
-    });
-    
-    // Gestione specifica per i dropdown nell'header
-    document.querySelectorAll('.nav-link[href="#"]').forEach(function(element) {
-        element.addEventListener('click', function(e) {
-            // Se è un dropdown toggle, previeni il comportamento predefinito
-            if (this.classList.contains('dropdown-toggle')) {
-                e.preventDefault();
-                
-                // Trova il dropdown corrispondente e aprilo/chiudilo
-                var dropdownElement = bootstrap.Dropdown.getInstance(this);
-                if (dropdownElement) {
-                    dropdownElement.toggle();
-                }
-            }
+        return new bootstrap.Dropdown(dropdownToggleEl, {
+            autoClose: true
         });
     });
-});
+})();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
