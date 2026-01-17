@@ -359,7 +359,7 @@ function get_user_info($user_id, $user_type) {
 }
 
 /**
- * Conta ticket aperti
+ * Conta ticket aperti (per admin) - FUNZIONE AGGIUNTA
  */
 function count_open_tickets($user_id = null, $user_type = null) {
     global $pdo;
@@ -386,6 +386,7 @@ function count_open_tickets($user_id = null, $user_type = null) {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result['count'] ?? 0;
     } catch (PDOException $e) {
+        error_log("count_open_tickets error: " . $e->getMessage());
         return 0;
     }
 }
@@ -414,6 +415,162 @@ function time_ago($timestamp) {
         return $diff->i == 1 ? '1 minuto fa' : $diff->i . ' minuti fa';
     } else {
         return 'pochi secondi fa';
+    }
+}
+
+/**
+ * Ottiene tutti i ticket con filtri e paginazione (per admin)
+ */
+function get_all_tickets($filters = [], $page = 1, $per_page = 20) {
+    global $pdo;
+    
+    try {
+        $offset = ($page - 1) * $per_page;
+        $where_conditions = ["1=1"];
+        $params = [];
+        
+        // Filtro per stato
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'open') {
+                $where_conditions[] = "(t.status = 'open' OR t.status = 'in_progress')";
+            } elseif ($filters['status'] === 'closed') {
+                $where_conditions[] = "(t.status = 'closed' OR t.status = 'resolved')";
+            } elseif ($filters['status'] !== 'all') {
+                $where_conditions[] = "t.status = ?";
+                $params[] = $filters['status'];
+            }
+        }
+        
+        // Filtro per ricerca
+        if (!empty($filters['search'])) {
+            if (is_numeric($filters['search'])) {
+                $where_conditions[] = "t.id = ?";
+                $params[] = intval($filters['search']);
+            } else {
+                $where_conditions[] = "(t.subject LIKE ? OR t.message LIKE ?)";
+                $search_term = "%" . $filters['search'] . "%";
+                $params[] = $search_term;
+                $params[] = $search_term;
+            }
+        }
+        
+        $where_sql = implode(' AND ', $where_conditions);
+        
+        // Query per conteggio totale
+        $count_sql = "SELECT COUNT(DISTINCT t.id) as total 
+                      FROM tickets t
+                      WHERE $where_sql";
+        
+        $stmt_count = $pdo->prepare($count_sql);
+        $stmt_count->execute($params);
+        $total_items = $stmt_count->fetch(PDO::FETCH_ASSOC)['total'];
+        
+        // Query principale
+        $sql = "
+            SELECT t.*, 
+                   CASE 
+                     WHEN t.user_type = 'brand' THEN b.company_name
+                     WHEN t.user_type = 'influencer' THEN i.full_name
+                     ELSE 'Utente'
+                   END as user_name,
+                   u.email as user_email,
+                   COUNT(DISTINCT tm.id) as message_count,
+                   MAX(tm.created_at) as last_message_date
+            FROM tickets t
+            LEFT JOIN brands b ON t.user_id = b.user_id AND t.user_type = 'brand'
+            LEFT JOIN influencers i ON t.user_id = i.user_id AND t.user_type = 'influencer'
+            LEFT JOIN users u ON (t.user_type = 'brand' AND b.user_id = u.id) OR (t.user_type = 'influencer' AND i.user_id = u.id)
+            LEFT JOIN ticket_messages tm ON t.id = tm.ticket_id
+            WHERE $where_sql
+            GROUP BY t.id 
+            ORDER BY t.updated_at DESC 
+            LIMIT ? OFFSET ?
+        ";
+        
+        $params[] = $per_page;
+        $params[] = $offset;
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return [
+            'tickets' => $tickets,
+            'total_items' => $total_items,
+            'total_pages' => ceil($total_items / $per_page),
+            'current_page' => $page
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("get_all_tickets error: " . $e->getMessage());
+        return [
+            'tickets' => [],
+            'total_items' => 0,
+            'total_pages' => 1,
+            'current_page' => $page
+        ];
+    }
+}
+
+/**
+ * Ottiene statistiche sui ticket (per admin dashboard)
+ */
+function get_ticket_stats() {
+    global $pdo;
+    
+    try {
+        $stats = [];
+        
+        // Ticket totali
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM tickets");
+        $stats['total'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Ticket aperti
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE status IN ('open', 'in_progress')");
+        $stmt->execute();
+        $stats['open'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Ticket risolti
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE status = 'resolved'");
+        $stmt->execute();
+        $stats['resolved'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Ticket chiusi
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE status = 'closed'");
+        $stmt->execute();
+        $stats['closed'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Ticket per priorità
+        $priorities = ['low', 'medium', 'high', 'urgent'];
+        foreach ($priorities as $priority) {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE priority = ?");
+            $stmt->execute([$priority]);
+            $stats['priority_' . $priority] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        }
+        
+        // Ticket per tipo utente
+        $types = ['brand', 'influencer'];
+        foreach ($types as $type) {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE user_type = ?");
+            $stmt->execute([$type]);
+            $stats['type_' . $type] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        }
+        
+        // Ticket ultimi 7 giorni
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM tickets WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $stmt->execute();
+        $stats['last_7_days'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        return $stats;
+        
+    } catch (PDOException $e) {
+        error_log("get_ticket_stats error: " . $e->getMessage());
+        return [
+            'total' => 0,
+            'open' => 0,
+            'resolved' => 0,
+            'closed' => 0
+        ];
     }
 }
 ?>

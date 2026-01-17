@@ -45,6 +45,29 @@ $is_general_settings_page = basename($_SERVER['PHP_SELF']) == 'general-settings.
 $is_communications_page = basename($_SERVER['PHP_SELF']) == 'communications.php'; // NUOVA VARIABILE PER COMUNICAZIONI
 // NUOVA VARIABILE PER AMMINISTRAZIONE
 $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']);
+// NUOVA VARIABILE PER TICKET
+$is_tickets_page = basename($_SERVER['PHP_SELF']) == 'tickets.php';
+
+// Funzione per contare ticket aperti (solo se le funzioni ticket esistono)
+function get_open_tickets_count() {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as count 
+            FROM tickets 
+            WHERE status IN ('open', 'in_progress')
+        ");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['count'] ?? 0;
+    } catch (Exception $e) {
+        error_log("Errore nel conteggio dei ticket aperti: " . $e->getMessage());
+        return 0;
+    }
+}
+
+$open_tickets_count = get_open_tickets_count();
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -54,6 +77,8 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
     <title>Admin - Influencer Marketplace</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Icone Bootstrap Icons per ticket -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         .sidebar {
             min-height: calc(100vh - 56px);
@@ -129,12 +154,28 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
             background-color: #f8f9fa;
             transform: translateY(-2px);
         }
+        /* Stili per i ticket */
+        .badge-priority-low { background-color: #6c757d; }
+        .badge-priority-medium { background-color: #0dcaf0; }
+        .badge-priority-high { background-color: #fd7e14; }
+        .badge-priority-urgent { background-color: #dc3545; }
+        .ticket-status-open { color: #28a745; }
+        .ticket-status-in_progress { color: #ffc107; }
+        .ticket-status-resolved { color: #17a2b8; }
+        .ticket-status-closed { color: #6c757d; }
         /* Responsive per le comunicazioni */
         @media (max-width: 768px) {
             .comm-actions {
                 flex-direction: column;
                 gap: 0.25rem;
             }
+        }
+        /* Badge per i ticket nella sidebar */
+        .sidebar .nav-link .badge {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.4rem;
+            position: relative;
+            top: -1px;
         }
     </style>
 </head>
@@ -214,7 +255,7 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
                                             <i class="fas fa-star me-2"></i> Sponsor Influencer
                                         </a>
                                     </li>
-									<li class="nav-item">
+                                    <li class="nav-item">
                                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' || basename($_SERVER['PHP_SELF']) == 'conversation.php' ? 'active' : ''; ?>" 
                                            href="/admin/messages.php">
                                             <i class="fas fa-comment-alt me-2"></i> Messaggi
@@ -229,6 +270,16 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
                                     </li>
                                 </ul>
                             </div>
+                        </li>
+
+                        <!-- NUOVA VOCE: Ticket di supporto -->
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $is_tickets_page ? 'active' : ''; ?>" href="/admin/tickets.php">
+                                <i class="bi bi-ticket-perforated me-2"></i> Ticket di supporto
+                                <?php if ($open_tickets_count > 0): ?>
+                                    <span class="badge bg-danger float-end mt-1"><?php echo $open_tickets_count; ?></span>
+                                <?php endif; ?>
+                            </a>
                         </li>
 
                         <!-- NUOVO MENU: Amministrazione a tendina -->
