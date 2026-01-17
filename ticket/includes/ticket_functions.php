@@ -136,7 +136,7 @@ function get_ticket_messages($ticket_id) {
                    CASE 
                      WHEN tm.user_type = 'brand' THEN b.company_name
                      WHEN tm.user_type = 'influencer' THEN i.full_name
-                     WHEN tm.user_type = 'admin' THEN 'Staff Supporto'
+                     WHEN tm.user_type = 'admin' THEN 'Supporto Kibbiz'
                      ELSE 'Utente'
                    END as user_name
             FROM ticket_messages tm

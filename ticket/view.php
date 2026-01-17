@@ -288,7 +288,7 @@ try {
                             <?php 
                                 $status_names = [
                                     'open' => 'Aperto',
-                                    'in_progress' => 'In Elaborazione',
+                                    'in_progress' => 'In lavorazione',  // MODIFICATO: "In Elaborazione" → "In lavorazione"
                                     'resolved' => 'Risolto',
                                     'closed' => 'Chiuso'
                                 ];

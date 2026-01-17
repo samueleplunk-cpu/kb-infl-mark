@@ -96,7 +96,7 @@ $unread_ticket_notifications = get_unread_ticket_notifications($user_id, $user_t
                                                 <?php 
                                                     $status_names = [
                                                         'open' => 'Aperto',
-                                                        'in_progress' => 'In Elaborazione',
+                                                        'in_progress' => 'In lavorazione',
                                                         'closed' => 'Chiuso',
                                                         'resolved' => 'Risolto'
                                                     ];

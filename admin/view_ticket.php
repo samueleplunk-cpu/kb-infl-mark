@@ -1,5 +1,4 @@
 <?php
-// /admin/view_ticket.php - Pagina admin per visualizzazione ticket
 require_once dirname(__DIR__) . '/includes/admin_header.php';
 
 // Includi funzioni ticket
@@ -56,7 +55,7 @@ try {
                CASE 
                  WHEN tm.user_type = 'brand' THEN b.company_name
                  WHEN tm.user_type = 'influencer' THEN i.full_name
-                 WHEN tm.user_type = 'admin' THEN 'Staff Supporto'
+                 WHEN tm.user_type = 'admin' THEN 'Supporto Kibbiz'
                  ELSE 'Utente'
                END as user_name
         FROM ticket_messages tm
@@ -147,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                CASE 
                                  WHEN tm.user_type = 'brand' THEN b.company_name
                                  WHEN tm.user_type = 'influencer' THEN i.full_name
-                                 WHEN tm.user_type = 'admin' THEN 'Staff Supporto'
+                                 WHEN tm.user_type = 'admin' THEN 'Supporto Kibbiz'
                                  ELSE 'Utente'
                                END as user_name
                         FROM ticket_messages tm
@@ -181,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function get_status_badge($status) {
     $status_names = [
         'open' => 'Aperto',
-        'in_progress' => 'In elaborazione',
+        'in_progress' => 'In lavorazione',
         'resolved' => 'Risolto',
         'closed' => 'Chiuso'
     ];
@@ -213,17 +212,10 @@ function get_priority_text($priority) {
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <!-- Header con breadcrumb -->
+            <!-- Header senza breadcrumb -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-0">
-                            <li class="breadcrumb-item"><a href="/admin/dashboard.php">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="/admin/tickets.php">Ticket</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Ticket #<?php echo $ticket_id; ?></li>
-                        </ol>
-                    </nav>
-                    <h1 class="h3 mb-0 mt-2"><?php echo htmlspecialchars($ticket['subject']); ?></h1>
+                    <h1 class="h3 mb-0"><?php echo htmlspecialchars($ticket['subject']); ?></h1>
                 </div>
                 <div>
                     <a href="/admin/tickets.php" class="btn btn-outline-secondary">
@@ -264,21 +256,15 @@ function get_priority_text($priority) {
                                 </div>
                             <?php else: ?>
                                 <?php foreach ($messages as $message): ?>
-                                    <div class="message-card mb-4">
+                                    <?php 
+                                    // Determinare se il messaggio è dell'admin o dell'utente
+                                    $is_admin_message = ($message['user_type'] === 'admin');
+                                    ?>
+                                    <div class="message-card mb-4 <?php echo $is_admin_message ? 'admin-message' : 'user-message'; ?>">
                                         <div class="message-header d-flex justify-content-between align-items-center">
                                             <div>
                                                 <strong><?php echo htmlspecialchars($message['user_name']); ?></strong>
-                                                <small class="text-muted ms-2">
-                                                    <?php 
-                                                    if ($message['user_type'] === 'brand') {
-                                                        echo '<span class="badge bg-primary">Brand</span>';
-                                                    } elseif ($message['user_type'] === 'influencer') {
-                                                        echo '<span class="badge bg-success">Influencer</span>';
-                                                    } elseif ($message['user_type'] === 'admin') {
-                                                        echo '<span class="badge bg-secondary">Staff</span>';
-                                                    }
-                                                    ?>
-                                                </small>
+                                                <!-- MODIFICATO: rimosso completamente i badge della tipologia utente -->
                                             </div>
                                             <small class="text-muted">
                                                 <?php echo date('d/m/Y - H:i', strtotime($message['created_at'])); ?>
@@ -286,7 +272,7 @@ function get_priority_text($priority) {
                                             </small>
                                         </div>
                                         <div class="message-body mt-2">
-                                            <div class="message-text p-3 bg-light rounded">
+                                            <div class="message-text">
                                                 <?php echo nl2br(htmlspecialchars($message['message'])); ?>
                                             </div>
                                             
@@ -350,14 +336,14 @@ function get_priority_text($priority) {
                                                     <label for="status" class="form-label me-2">Aggiorna stato:</label>
                                                     <select name="status" id="status" class="form-select form-select-sm d-inline-block" style="width: auto;">
                                                         <option value="open" <?php echo $ticket['status'] === 'open' ? 'selected' : ''; ?>>Aperto</option>
-                                                        <option value="in_progress" <?php echo $ticket['status'] === 'in_progress' ? 'selected' : ''; ?>>In Elaborazione</option>
+                                                        <option value="in_progress" <?php echo $ticket['status'] === 'in_progress' ? 'selected' : ''; ?>>In Lavorazione</option>  <!-- MODIFICATO: "In Elaborazione" → "In Lavorazione" -->
                                                         <option value="resolved" <?php echo $ticket['status'] === 'resolved' ? 'selected' : ''; ?>>Segna come Risolto</option>
                                                         <option value="closed" <?php echo $ticket['status'] === 'closed' ? 'selected' : ''; ?>>Chiudi</option>
                                                     </select>
                                                 </div>
                                                 <div>
                                                     <button type="submit" name="submit_reply" class="btn btn-primary">
-                                                        <i class="fas fa-paper-plane me-1"></i> Invia risposta
+                                                        Invia risposta
                                                     </button>
                                                 </div>
                                             </div>
@@ -450,7 +436,7 @@ function get_priority_text($priority) {
                                     <label for="quick_status" class="form-label">Cambia stato:</label>
                                     <select name="status" id="quick_status" class="form-select" onchange="if(confirm('Cambiare stato del ticket?')){this.form.submit();}">
                                         <option value="open" <?php echo $ticket['status'] === 'open' ? 'selected' : ''; ?>>Aperto</option>
-                                        <option value="in_progress" <?php echo $ticket['status'] === 'in_progress' ? 'selected' : ''; ?>>In Elaborazione</option>
+                                        <option value="in_progress" <?php echo $ticket['status'] === 'in_progress' ? 'selected' : ''; ?>>In Lavorazione</option>  <!-- MODIFICATO: "In Elaborazione" → "In Lavorazione" -->
                                         <option value="resolved" <?php echo $ticket['status'] === 'resolved' ? 'selected' : ''; ?>>Segna come Risolto</option>
                                         <option value="closed" <?php echo $ticket['status'] === 'closed' ? 'selected' : ''; ?>>Chiudi</option>
                                     </select>
@@ -521,11 +507,27 @@ document.addEventListener('DOMContentLoaded', function() {
 .message-card {
     border-radius: 8px;
     border: 1px solid #dee2e6;
+    max-width: 80%;
+    margin-right: auto;
+    margin-left: 0;
+}
+.admin-message {
+    margin-left: auto;
+    margin-right: 0;
+    background-color: #f0f7ff;
+    border-color: #cce5ff;
+}
+.user-message {
+    background-color: #f8f9fa;
 }
 .message-header {
     border-bottom: 1px solid #dee2e6;
     padding: 0.75rem 1rem;
-    background-color: #f8f9fa;
+    background-color: rgba(0,0,0,0.02);
+}
+.admin-message .message-header {
+    background-color: rgba(0,123,255,0.05);
+    border-bottom-color: #cce5ff;
 }
 .message-body {
     padding: 1rem;
@@ -533,6 +535,26 @@ document.addEventListener('DOMContentLoaded', function() {
 .message-text {
     white-space: pre-wrap;
     word-wrap: break-word;
+    text-align: left !important;
+    padding: 1rem !important;
+    margin: 0 !important;
+    width: 100% !important;
+    background-color: transparent !important;
+}
+.admin-message .message-text {
+    background-color: transparent !important;
+}
+
+/* Rimuove qualsiasi centratura del testo */
+.message-text * {
+    text-align: left !important;
+}
+
+/* Responsive: su schermi piccoli, usa tutta la larghezza */
+@media (max-width: 768px) {
+    .message-card {
+        max-width: 95%;
+    }
 }
 </style>
 

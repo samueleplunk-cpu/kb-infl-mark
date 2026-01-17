@@ -192,26 +192,16 @@ function get_priority_text($priority) {
     return $priority_names[$priority] ?? $priority;
 }
 
-// Funzione per badge stato
-function get_status_badge($status) {
+// MODIFICA: Funzione per testo stato (senza badge)
+function get_status_text($status) {
     $status_names = [
         'open' => 'Aperto',
-        'in_progress' => 'In elaborazione',
+        'in_progress' => 'In lavorazione',
         'resolved' => 'Risolto',
         'closed' => 'Chiuso'
     ];
     
-    $colors = [
-        'open' => 'success',
-        'in_progress' => 'warning',
-        'resolved' => 'info',
-        'closed' => 'secondary'
-    ];
-    
-    $status_text = $status_names[$status] ?? $status;
-    $color = $colors[$status] ?? 'secondary';
-    
-    return '<span class="badge bg-' . $color . '">' . $status_text . '</span>';
+    return $status_names[$status] ?? $status;
 }
 
 // CALCOLA i contatori per le card
@@ -332,7 +322,7 @@ try {
                             <select name="status" id="status" class="form-select" onchange="this.form.submit()">
                                 <option value="all" <?php echo $status_filter == 'all' ? 'selected' : ''; ?>>Tutti i ticket</option>
                                 <option value="open" <?php echo $status_filter == 'open' ? 'selected' : ''; ?>>Aperti</option>
-                                <option value="in_progress" <?php echo $status_filter == 'in_progress' ? 'selected' : ''; ?>>In elaborazione</option>
+                                <option value="in_progress" <?php echo $status_filter == 'in_progress' ? 'selected' : ''; ?>>In lavorazione</option>
                                 <option value="resolved" <?php echo $status_filter == 'resolved' ? 'selected' : ''; ?>>Risolti</option>
                                 <option value="closed" <?php echo $status_filter == 'closed' ? 'selected' : ''; ?>>Chiusi</option>
                             </select>
@@ -417,12 +407,15 @@ try {
                                                 <?php endif; ?>
                                             </td>
                                             <td class="text-center">
-                                                <?php echo get_status_badge($ticket['status']); ?>
+                                                <!-- MODIFICA: Mostra solo testo senza badge -->
+                                                <div class="fw-normal">
+                                                    <?php echo get_status_text($ticket['status']); ?>
+                                                </div>
                                                 <form method="POST" action="" class="mt-1">
                                                     <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
                                                     <select name="new_status" class="form-select form-select-sm" onchange="if(confirm('Cambiare stato del ticket?')){this.form.submit();}">
                                                         <option value="open" <?php echo $ticket['status'] == 'open' ? 'selected' : ''; ?>>Aperto</option>
-                                                        <option value="in_progress" <?php echo $ticket['status'] == 'in_progress' ? 'selected' : ''; ?>>In elaborazione</option>
+                                                        <option value="in_progress" <?php echo $ticket['status'] == 'in_progress' ? 'selected' : ''; ?>>In lavorazione</option>
                                                         <option value="resolved" <?php echo $ticket['status'] == 'resolved' ? 'selected' : ''; ?>>Risolto</option>
                                                         <option value="closed" <?php echo $ticket['status'] == 'closed' ? 'selected' : ''; ?>>Chiuso</option>
                                                     </select>
@@ -440,7 +433,10 @@ try {
                                                 <small class="text-muted d-block mt-1"><?php echo time_ago($ticket['created_at']); ?></small>
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-info rounded-pill"><?php echo $ticket['message_count']; ?></span>
+                                                <!-- MODIFICA: Mostra solo numero senza badge -->
+                                                <div class="fw-bold">
+                                                    <?php echo $ticket['message_count']; ?>
+                                                </div>
                                                 <?php if ($ticket['last_message_date']): ?>
                                                     <div class="text-muted small">Ultimo: <?php echo $last_message_time; ?></div>
                                                 <?php endif; ?>
