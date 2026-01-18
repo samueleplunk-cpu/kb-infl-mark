@@ -28,18 +28,22 @@ if (!$ticket) {
 // Ottieni messaggi
 $messages = get_ticket_messages($ticket_id);
 
-// Gestione nuova risposta
+// Gestione nuova risposta con PRG (Post-Redirect-Get) pattern
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
     $new_message = trim($_POST['message'] ?? '');
     $attachment_path = null;
+    $has_errors = false;
+    $redirect_params = [];
     
     if (empty($new_message)) {
-        $error = "Il messaggio non può essere vuoto";
+        $redirect_params['error'] = urlencode("Il messaggio non può essere vuoto");
+        $has_errors = true;
     } elseif (strlen($new_message) > 5000) {
-        $error = "Il messaggio è troppo lungo (max 5000 caratteri)";
+        $redirect_params['error'] = urlencode("Il messaggio è troppo lungo (max 5000 caratteri)");
+        $has_errors = true;
     } else {
         // Gestione allegato se presente
         if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
@@ -48,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
             // Validazione dimensione file (max 2 MB)
             $max_size = 2 * 1024 * 1024; // 2 MB in bytes
             if ($file['size'] > $max_size) {
-                $error = "Il file allegato è troppo grande (dimensione massima: 2 MB)";
+                $redirect_params['error'] = urlencode("Il file allegato è troppo grande (dimensione massima: 2 MB)");
+                $has_errors = true;
             } else {
                 // Validazione tipo MIME
                 $allowed_mime_types = [
@@ -64,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
                 finfo_close($finfo);
                 
                 if (!in_array($mime_type, $allowed_mime_types)) {
-                    $error = "Tipo di file non supportato. Sono consentiti: immagini, PDF, documenti Word/Excel, file di testo";
+                    $redirect_params['error'] = urlencode("Tipo di file non supportato. Sono consentiti: immagini, PDF, documenti Word/Excel, file di testo");
+                    $has_errors = true;
                 } else {
                     // Crea directory uploads se non esiste
                     $upload_dir = BASE_DIR . '/uploads/tickets/';
@@ -81,7 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
                     if (move_uploaded_file($file['tmp_name'], $file_path)) {
                         $attachment_path = 'uploads/tickets/' . $file_name;
                     } else {
-                        $error = "Errore nel salvataggio del file allegato";
+                        $redirect_params['error'] = urlencode("Errore nel salvataggio del file allegato");
+                        $has_errors = true;
                     }
                 }
             }
@@ -97,11 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
             ];
             
             $error_code = $_FILES['attachment']['error'];
-            $error = isset($upload_errors[$error_code]) ? $upload_errors[$error_code] : 'Errore sconosciuto durante l\'upload del file';
+            $error_msg = isset($upload_errors[$error_code]) ? $upload_errors[$error_code] : 'Errore sconosciuto durante l\'upload del file';
+            $redirect_params['error'] = urlencode($error_msg);
+            $has_errors = true;
         }
         
         // Se non ci sono errori, aggiungi la risposta con allegato (se presente)
-        if (empty($error)) {
+        if (!$has_errors) {
             // Aggiorna stato del ticket se specificato (solo per admin)
             if ($user_type === 'admin' && isset($_POST['status'])) {
                 update_ticket_status($ticket_id, $_POST['status']);
@@ -109,15 +118,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
             
             // Aggiungi la risposta
             if (add_ticket_reply($ticket_id, $user_id, $user_type, $new_message, $attachment_path)) {
-                $success = "Risposta inviata con successo";
-                // Ricarica i messaggi
-                $messages = get_ticket_messages($ticket_id);
-                $ticket = get_ticket($ticket_id);
+                // Imposta parametro success per il redirect
+                $redirect_params['success'] = urlencode("Risposta inviata con successo");
             } else {
-                $error = "Errore nell'invio della risposta";
+                $redirect_params['error'] = urlencode("Errore nell'invio della risposta");
+                $has_errors = true;
             }
         }
     }
+    
+    // APPLICAZIONE PATTERN PRG - Redirect dopo POST
+    // Costruisci l'URL di redirect con i parametri
+    $query_string = '';
+    if (!empty($redirect_params)) {
+        $query_string = '?' . http_build_query($redirect_params);
+    }
+    
+    // Redirect alla stessa pagina (GET request)
+    header("Location: view.php?id=" . $ticket_id . $query_string);
+    exit();
+}
+
+// Gestione dei messaggi di errore/successo dai parametri GET (dopo redirect)
+if (isset($_GET['error'])) {
+    $error = urldecode($_GET['error']);
+}
+
+if (isset($_GET['success'])) {
+    $success = urldecode($_GET['success']);
+    
+    // Se c'è un success message, ricarica i dati per mostrare il nuovo messaggio
+    $messages = get_ticket_messages($ticket_id);
+    $ticket = get_ticket($ticket_id);
 }
 
 // Segna notifiche relative a questo ticket come lette
@@ -134,6 +166,7 @@ try {
     error_log("Error marking notifications as read: " . $e->getMessage());
 }
 ?>
+
 <?php include dirname(__DIR__) . '/includes/header.php'; ?>
 
 <div class="container py-4">
@@ -172,7 +205,7 @@ try {
                                     <div class="message-text"><?php echo nl2br(htmlspecialchars($message['message'])); ?></div>
                                     
                                     <?php if (!empty($message['attachment'])): ?>
-                                        <div class="mt-3">
+                                        <div class="mt-2">
                                             <?php
                                             // Estrai il nome file dal percorso
                                             $attachment_path = $message['attachment'];
@@ -190,8 +223,9 @@ try {
                                             // Usa URL assoluto fisso invece di BASE_URL per evitare il problema /httpdocs/
                                             $download_url = 'https://kibbiz.com/' . htmlspecialchars($attachment_path);
                                             ?>
+                                            <!-- VISUALIZZAZIONE SEMPLICE COME IN /admin/view_ticket.php -->
                                             <a href="<?php echo $download_url; ?>" 
-                                               class="badge bg-light text-dark attachment-badge text-decoration-none" 
+                                               class="badge bg-light text-dark border text-decoration-none" 
                                                download="<?php echo htmlspecialchars($decoded_filename); ?>">
                                                 <i class="bi bi-paperclip"></i> 
                                                 <?php echo htmlspecialchars($decoded_filename); ?>

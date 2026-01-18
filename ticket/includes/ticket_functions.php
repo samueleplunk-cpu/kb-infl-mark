@@ -573,4 +573,76 @@ function get_ticket_stats() {
         ];
     }
 }
+
+/**
+ * Aggiorna un messaggio del ticket
+ */
+function update_ticket_message($message_id, $ticket_id, $message) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE ticket_messages 
+            SET message = ?, updated_at = NOW() 
+            WHERE id = ? AND ticket_id = ?
+        ");
+        
+        $stmt->execute([$message, $message_id, $ticket_id]);
+        
+        // Aggiorna timestamp del ticket
+        $stmt_update = $pdo->prepare("
+            UPDATE tickets SET updated_at = NOW() WHERE id = ?
+        ");
+        $stmt_update->execute([$ticket_id]);
+        
+        return true;
+    } catch (PDOException $e) {
+        error_log("update_ticket_message error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Elimina un messaggio del ticket
+ */
+function delete_ticket_message($message_id, $ticket_id) {
+    global $pdo;
+    
+    try {
+        // Ottieni informazioni sull'allegato se presente
+        $stmt = $pdo->prepare("
+            SELECT attachment 
+            FROM ticket_messages 
+            WHERE id = ? AND ticket_id = ?
+        ");
+        $stmt->execute([$message_id, $ticket_id]);
+        $message = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Elimina il messaggio
+        $stmt = $pdo->prepare("
+            DELETE FROM ticket_messages 
+            WHERE id = ? AND ticket_id = ?
+        ");
+        $result = $stmt->execute([$message_id, $ticket_id]);
+        
+        // Se c'è un allegato, elimina anche il file
+        if ($result && !empty($message['attachment'])) {
+            $file_path = dirname(__DIR__) . '/../' . $message['attachment'];
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+        
+        // Aggiorna timestamp del ticket
+        $stmt_update = $pdo->prepare("
+            UPDATE tickets SET updated_at = NOW() WHERE id = ?
+        ");
+        $stmt_update->execute([$ticket_id]);
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("delete_ticket_message error: " . $e->getMessage());
+        return false;
+    }
+}
 ?>
