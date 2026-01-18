@@ -470,10 +470,10 @@ elseif ($action === 'add' || $action === 'edit') {
             exit;
         }
         
-        // Recupera i dettagli aggiuntivi dalla tabella brands (dove c'è il logo)
+        // Recupera i dettagli aggiuntivi dalla tabella brands (dove c'è il logo e la nazionalità)
         try {
             global $pdo;
-            $stmt = $pdo->prepare("SELECT logo, company_name as brands_company_name FROM brands WHERE user_id = ?");
+            $stmt = $pdo->prepare("SELECT logo, company_name as brands_company_name, nationality FROM brands WHERE user_id = ?");
             $stmt->execute([$id]);
             $brand_details = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -578,6 +578,21 @@ elseif ($action === 'add' || $action === 'edit') {
         <div class="mb-2">
             <small class="text-muted">Creato il:</small>
             <span class="ms-1"><?php echo date('d/m/Y - H:i', strtotime($brand['created_at'])); ?></span>
+        </div>
+        
+        <!-- NUOVA VOCE: Nazione -->
+        <div class="mb-2">
+            <small class="text-muted">Nazione:</small>
+            <span class="ms-1">
+                <?php
+                // Recupera la nazione del brand dalla tabella brands
+                $brand_country = "Non specificata";
+                if ($brand_details && isset($brand_details['nationality']) && !empty($brand_details['nationality'])) {
+                    $brand_country = htmlspecialchars($brand_details['nationality']);
+                }
+                echo $brand_country;
+                ?>
+            </span>
         </div>
         
         <?php if ($brand['updated_at'] && $brand['updated_at'] != $brand['created_at']): ?>
@@ -724,7 +739,7 @@ elseif ($action === 'add' || $action === 'edit') {
                             
                             <div class="d-flex gap-2">
                                 <button type="submit" name="save_brand" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Salva
+                                    Salva
                                 </button>
                                 <a href="?action=list" class="btn btn-secondary">Annulla</a>
                             </div>

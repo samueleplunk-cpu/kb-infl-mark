@@ -589,6 +589,13 @@ if ($id) {
         <h6 class="card-title">Informazioni Account</h6>
         <ul class="list-unstyled small">
             <li><strong>ID:</strong> <?php echo $influencer['id']; ?></li>
+            <li><strong>Nazione:</strong> <?php 
+                if (!empty($influencer['influencer_nationality'])) {
+                    echo htmlspecialchars($influencer['influencer_nationality']);
+                } else {
+                    echo '<span class="text-muted">Non specificata</span>';
+                }
+            ?></li>
             <li><strong>Registrato il:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['created_at'])); ?></li>
             <li><strong>Ultimo aggiornamento:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['updated_at'])); ?></li>
             <!-- NUOVE VOCI SPONSOR -->

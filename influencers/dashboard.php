@@ -396,7 +396,7 @@ function hideAdminCommunication(commId) {
                                 <div class="col-md-6">
                                     <!-- NUOVA RIGA NAZIONALITÀ -->
                                     <div class="mb-3">
-                                        <strong>Nazionalità:</strong>
+                                        <strong>Nazione:</strong>
                                         <span class="float-end">
                                             <?php echo !empty($influencer['nationality']) ? htmlspecialchars($influencer['nationality']) : 'N/D'; ?>
                                         </span>

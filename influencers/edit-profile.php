@@ -520,7 +520,7 @@ $normalized_niche = get_normalized_niche($influencer['niche'] ?? '', $categories
 
                             <!-- MODIFICATO: CAMPO NAZIONALITÀ OBBLIGATORIO CON TUTTE LE NAZIONI E RICERCA -->
                             <div class="mb-3">
-                                <label for="nationality" class="form-label">Nazionalità *</label>
+                                <label for="nationality" class="form-label">Nazione *</label>
                                 <select class="form-select select2-search" id="nationality" name="nationality" required>
                                     <option value="">Seleziona una nazionalità</option>
                                     <?php foreach ($countries as $country): ?>
