@@ -78,14 +78,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
                         mkdir($upload_dir, 0777, true);
                     }
                     
-                    // Genera nome file unico
-                    $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                    $file_name = uniqid('ticket_', true) . '_' . time() . '.' . $file_extension;
-                    $file_path = $upload_dir . $file_name;
+                    // MODIFICA: Mantenere nome originale del file con gestione conflitti
+                    $original_filename = basename($file['name']); // Rimuove path traversal
+                    $file_extension = pathinfo($original_filename, PATHINFO_EXTENSION);
+                    $file_name_without_ext = pathinfo($original_filename, PATHINFO_FILENAME);
+                    
+                    // Sanitizza il nome del file (rimuove caratteri pericolosi)
+                    $sanitized_name = preg_replace('/[^\w\s\.\-]/', '_', $file_name_without_ext);
+                    $sanitized_name = substr($sanitized_name, 0, 100); // Limita lunghezza
+                    
+                    // Costruisci il nome base
+                    $base_name = $sanitized_name . '.' . $file_extension;
+                    $file_path = $upload_dir . $base_name;
+                    
+                    // Gestione conflitti: se il file esiste già, aggiungi un numero incrementale
+                    $counter = 1;
+                    while (file_exists($file_path)) {
+                        $base_name = $sanitized_name . '(' . $counter . ').' . $file_extension;
+                        $file_path = $upload_dir . $base_name;
+                        $counter++;
+                    }
                     
                     // Sposta il file nella directory di upload
                     if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                        $attachment_path = 'uploads/tickets/' . $file_name;
+                        $attachment_path = 'uploads/tickets/' . $base_name;
                     } else {
                         $redirect_params['error'] = urlencode("Errore nel salvataggio del file allegato");
                         $has_errors = true;
@@ -145,11 +161,16 @@ if (isset($_GET['error'])) {
 }
 
 if (isset($_GET['success'])) {
-    $success = urldecode($_GET['success']);
+    $success_message = urldecode($_GET['success']);
     
-    // Se c'è un success message, ricarica i dati per mostrare il nuovo messaggio
-    $messages = get_ticket_messages($ticket_id);
-    $ticket = get_ticket($ticket_id);
+    // Filtro: non showre il messaggio "status_updated" che viene dall'admin panel
+    if ($success_message !== "status_updated") {
+        $success = $success_message;
+        
+        // Se c'è un success message, ricarica i dati per mostrare il nuovo messaggio
+        $messages = get_ticket_messages($ticket_id);
+        $ticket = get_ticket($ticket_id);
+    }
 }
 
 // Segna notifiche relative a questo ticket come lette
@@ -170,7 +191,6 @@ try {
 <?php include dirname(__DIR__) . '/includes/header.php'; ?>
 
 <div class="container py-4">
-    <!-- Breadcrumb rimosso come richiesto -->
     
     <div class="row">
         <div class="col-lg-8">
@@ -192,7 +212,7 @@ try {
                         </div>
                     <?php else: ?>
                         <?php foreach ($messages as $message): ?>
-                            <div class="message-card">
+                            <div class="message-card <?php echo $message['user_type'] === 'admin' ? 'message-admin' : ''; ?>">
                                 <div class="message-header d-flex justify-content-between align-items-center">
                                     <div>
                                         <strong><?php echo htmlspecialchars($message['user_name']); ?></strong>
@@ -223,12 +243,18 @@ try {
                                             // Usa URL assoluto fisso invece di BASE_URL per evitare il problema /httpdocs/
                                             $download_url = 'https://kibbiz.com/' . htmlspecialchars($attachment_path);
                                             ?>
-                                            <!-- VISUALIZZAZIONE SEMPLICE COME IN /admin/view_ticket.php -->
+                                            <!-- NUOVA VISUALIZZAZIONE COMPATTA CON ICONA FONT AWESOME -->
                                             <a href="<?php echo $download_url; ?>" 
-                                               class="badge bg-light text-dark border text-decoration-none" 
-                                               download="<?php echo htmlspecialchars($decoded_filename); ?>">
-                                                <i class="bi bi-paperclip"></i> 
-                                                <?php echo htmlspecialchars($decoded_filename); ?>
+                                               class="attachment-link" 
+                                               download="<?php echo htmlspecialchars($decoded_filename); ?>"
+                                               title="<?php echo htmlspecialchars($decoded_filename); ?>">
+                                                <i class="fa-solid fa-paperclip"></i>
+                                                <span class="attachment-filename">
+                                                    <?php
+                                                    // MODIFICA: Visualizza il nome del file per intero senza troncarlo
+                                                    echo htmlspecialchars($decoded_filename);
+                                                    ?>
+                                                </span>
                                             </a>
                                         </div>
                                     <?php endif; ?>
@@ -504,6 +530,52 @@ try {
     .message-text {
         white-space: pre-wrap;
         word-wrap: break-word;
+    }
+    .message-admin {
+        background-color: #f0f7ff !important;
+        border-left: 3px solid #e4f1ff !important;
+    }
+    .message-admin .message-header {
+        background-color: #e4f1ff !important;
+        border-bottom-color: #90caf9 !important;
+    }
+    
+    /* Stili per la nuova visualizzazione degli allegati */
+    .attachment-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 1rem;
+        color: #495057;
+        text-decoration: none;
+        font-size: 0.875rem;
+        max-width: 100%; /* MODIFICA: Permette di espandersi */
+        transition: all 0.2s ease;
+        word-break: break-all; /* Aggiunto per gestire parole lunghe */
+        flex-wrap: wrap; /* MODIFICA: Permette il wrapping del contenuto */
+    }
+    
+    .attachment-link:hover {
+        background-color: #e9ecef;
+        border-color: #ced4da;
+        color: #212529;
+        text-decoration: none;
+    }
+    
+    .attachment-link i {
+        margin-right: 0.375rem;
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .attachment-filename {
+        overflow: visible; /* MODIFICA: Cambiato da 'hidden' a 'visible' */
+        text-overflow: clip; /* MODIFICA: Cambiato da 'ellipsis' a 'clip' */
+        white-space: normal; /* MODIFICA: Cambiato da 'nowrap' a 'normal' */
+        word-break: break-all; /* Aggiunto per permettere il wrap su parole lunghe */
+        max-width: none; /* MODIFICA: Rimossa la limitazione di larghezza */
     }
 </style>
 </body>

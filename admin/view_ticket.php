@@ -159,15 +159,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             mkdir($upload_dir, 0777, true);
                         }
                         
-                        $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                        $file_name = uniqid('ticket_', true) . '_' . time() . '.' . $file_extension;
+                        // === MODIFICA: Mantieni il nome originale del file ===
+                        $original_name = basename($file['name']);
+                        
+                        // Sanitizza il nome del file
+                        $original_name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $original_name);
+                        
+                        // Limita la lunghezza del nome (max 255 caratteri, considerando l'estensione)
+                        if (strlen($original_name) > 255) {
+                            $name_without_ext = pathinfo($original_name, PATHINFO_FILENAME);
+                            $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+                            $name_without_ext = substr($name_without_ext, 0, 250 - strlen($extension));
+                            $original_name = $name_without_ext . '.' . $extension;
+                        }
+                        
+                        // Gestione conflitti di nomi
+                        $counter = 1;
+                        $file_name = $original_name;
                         $file_path = $upload_dir . $file_name;
+                        
+                        while (file_exists($file_path)) {
+                            $name_without_ext = pathinfo($original_name, PATHINFO_FILENAME);
+                            $extension = pathinfo($original_name, PATHINFO_EXTENSION);
+                            $file_name = $name_without_ext . '(' . $counter . ').' . $extension;
+                            $file_path = $upload_dir . $file_name;
+                            $counter++;
+                        }
                         
                         if (move_uploaded_file($file['tmp_name'], $file_path)) {
                             $attachment_path = 'uploads/tickets/' . $file_name;
                         } else {
                             $_SESSION['error_message'] = "Errore nel salvataggio del file allegato";
                         }
+                        // === FINE MODIFICA ===
                     }
                 }
             }
@@ -407,20 +431,16 @@ function get_priority_text($priority) {
                                                     $attachment_path = $message['attachment'];
                                                     $original_filename = basename($attachment_path);
                                                     
-                                                    $decoded_filename = $original_filename;
-                                                    if (preg_match('/^ticket_[^_]+_[^_]+_(.+)$/', $original_filename, $matches)) {
-                                                        $decoded_filename = $matches[1];
-                                                    } elseif (preg_match('/^ticket_/', $original_filename)) {
-                                                        $decoded_filename = substr($original_filename, 7);
-                                                    }
+                                                    // === MODIFICA: Usa direttamente il nome del file ===
+                                                    $display_filename = $original_filename;
                                                     
                                                     $download_url = 'https://kibbiz.com/' . htmlspecialchars($attachment_path);
                                                     ?>
                                                     <a href="<?php echo $download_url; ?>" 
                                                        class="badge bg-light text-dark border text-decoration-none" 
-                                                       download="<?php echo htmlspecialchars($decoded_filename); ?>">
+                                                       download="<?php echo htmlspecialchars($display_filename); ?>">
                                                         <i class="bi bi-paperclip"></i> 
-                                                        <?php echo htmlspecialchars($decoded_filename); ?>
+                                                        <?php echo htmlspecialchars($display_filename); ?>
                                                     </a>
                                                 </div>
                                             <?php endif; ?>
@@ -738,12 +758,12 @@ document.addEventListener('DOMContentLoaded', function() {
 .message-card {
     border-radius: 8px;
     border: 1px solid #dee2e6;
-    max-width: 80%;
-    margin-right: auto;
+    max-width: 100%;
+    margin-right: 0;
     margin-left: 0;
 }
 .admin-message {
-    margin-left: auto;
+    margin-left: 0;
     margin-right: 0;
     background-color: #f0f7ff;
     border-color: #cce5ff;
@@ -788,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Responsive: su schermi piccoli, usa tutta la larghezza */
 @media (max-width: 768px) {
     .message-card {
-        max-width: 95%;
+        max-width: 100%;
     }
 }
 </style>

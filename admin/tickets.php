@@ -24,11 +24,9 @@ if (isset($_POST['change_status']) && isset($_POST['ticket_id']) && isset($_POST
     $ticket_id = intval($_POST['ticket_id']);
     $new_status = $_POST['new_status'];
     
-    if (update_ticket_status($ticket_id, $new_status)) {
-        $_SESSION['success_message'] = "Stato del ticket aggiornato con successo.";
-    } else {
-        $_SESSION['error_message'] = "Errore nell'aggiornamento dello stato.";
-    }
+    // Aggiorna lo stato senza impostare messaggi di sessione
+    // Questo evita che l'alert appaia in /ticket/view.php
+    update_ticket_status($ticket_id, $new_status);
     
     // Redirect per evitare resubmission
     header("Location: tickets.php?" . http_build_query($_GET));
@@ -413,7 +411,7 @@ try {
                                                 </div>
                                                 <form method="POST" action="" class="mt-1">
                                                     <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
-                                                    <select name="new_status" class="form-select form-select-sm" onchange="if(confirm('Cambiare stato del ticket?')){this.form.submit();}">
+                                                    <select name="new_status" class="form-select form-select-sm">
                                                         <option value="open" <?php echo $ticket['status'] == 'open' ? 'selected' : ''; ?>>Aperto</option>
                                                         <option value="in_progress" <?php echo $ticket['status'] == 'in_progress' ? 'selected' : ''; ?>>In lavorazione</option>
                                                         <option value="resolved" <?php echo $ticket['status'] == 'resolved' ? 'selected' : ''; ?>>Risolto</option>
