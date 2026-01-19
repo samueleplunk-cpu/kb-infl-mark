@@ -244,6 +244,48 @@ require_once $header_file;
         </div>
         <?php endif; ?>
 
+        <!-- Statistiche (SPOSTATE PRIMA DEI FILTRI) -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title"><?php echo $total_campaigns; ?></h5>
+                        <p class="card-text">Campagne trovate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <?php echo count(array_filter($campaigns, function($c) { return !$c['has_applied']; })); ?>
+                        </h5>
+                        <p class="card-text">Nuove opportunità</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <?php echo count(array_filter($campaigns, function($c) { return $c['has_applied']; })); ?>
+                        </h5>
+                        <p class="card-text">Candidature inviate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <?php echo array_sum(array_column($campaigns, 'application_count')); ?>
+                        </h5>
+                        <p class="card-text">Candidature totali</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Filtri -->
         <div class="card mb-4">
             <div class="card-header">
@@ -272,19 +314,7 @@ require_once $header_file;
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Budget Min</label>
-                        <input type="number" name="min_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($min_budget); ?>" 
-                               placeholder="€ Min">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Budget Max</label>
-                        <input type="number" name="max_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($max_budget); ?>" 
-                               placeholder="€ Max">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Piattaforma</label>
+                        <label class="form-label">Social Network</label>
                         <select name="platform" class="form-select">
                             <option value="">Tutte</option>
                             <?php
@@ -297,52 +327,27 @@ require_once $header_file;
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Filtra</button>
+                    <div class="col-md-2">
+                        <label class="form-label">Budget Min</label>
+                        <input type="number" name="min_budget" class="form-control" 
+                               value="<?php echo htmlspecialchars($min_budget); ?>" 
+                               placeholder="€ Min">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Budget Max</label>
+                        <input type="number" name="max_budget" class="form-control" 
+                               value="<?php echo htmlspecialchars($max_budget); ?>" 
+                               placeholder="€ Max">
+                    </div>
+                    <div class="col-md-12 mt-3">
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-primary">Cerca</button>
+                            <a href="list.php" class="btn btn-outline-secondary">
+                                Reset
+                            </a>
+                        </div>
                     </div>
                 </form>
-            </div>
-        </div>
-
-        <!-- Statistiche -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-primary">
-                    <div class="card-body">
-                        <h5 class="card-title"><?php echo $total_campaigns; ?></h5>
-                        <p class="card-text">Campagne Trovate</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo count(array_filter($campaigns, function($c) { return !$c['has_applied']; })); ?>
-                        </h5>
-                        <p class="card-text">Nuove Opportunità</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-info">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo count(array_filter($campaigns, function($c) { return $c['has_applied']; })); ?>
-                        </h5>
-                        <p class="card-text">Già Candidate</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-warning">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo array_sum(array_column($campaigns, 'application_count')); ?>
-                        </h5>
-                        <p class="card-text">Candidature Totali</p>
-                    </div>
-                </div>
             </div>
         </div>
 

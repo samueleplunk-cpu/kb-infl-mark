@@ -392,7 +392,7 @@ function hideAdminCommunication(commId) {
                                     </div>
                                 <?php endif; ?>
                                 
-                                <!-- Colonna destra con tariffa, visualizzazioni e rating -->
+                                <!-- Colonna destra con nazione, tariffa, visualizzazioni e rating -->
                                 <div class="col-md-6">
                                     <!-- NUOVA RIGA NAZIONALITÀ -->
                                     <div class="mb-3">
@@ -425,16 +425,7 @@ function hideAdminCommunication(commId) {
                                 </div>
                             </div>
                             
-                            <?php if (!empty($influencer['website'])): ?>
-                                <div class="mb-3">
-                                    <strong>Website:</strong>
-                                    <span class="float-end">
-                                        <a href="<?php echo htmlspecialchars($influencer['website']); ?>" target="_blank">
-                                            <?php echo htmlspecialchars($influencer['website']); ?>
-                                        </a>
-                                    </span>
-                                </div>
-                            <?php endif; ?>
+                            <!-- RIMOSSA SEZIONE WEBSITE -->
                         </div>
                     </div>
                 </div>
@@ -448,16 +439,37 @@ function hideAdminCommunication(commId) {
                 <div class="card-body">
                     <?php 
                     $completed = 0;
-                    $total_fields = 8;
+                    $total_fields = 7;
                     
-                    if (!empty($influencer['full_name'])) $completed++;
-                    if (!empty($influencer['bio'])) $completed++;
-                    if (!empty($influencer['niche'])) $completed++;
-                    if (!empty($influencer['instagram_handle'])) $completed++;
-                    if (!empty($influencer['rate'])) $completed++;
-                    if (!empty($influencer['profile_image'])) $completed++;
-                    if (!empty($influencer['website'])) $completed++;
-                    if (!empty($influencer['instagram_handle']) || !empty($influencer['tiktok_handle']) || !empty($influencer['youtube_handle'])) $completed++;
+                    // Array per tracciare i campi mancanti
+                    $missing_fields = [];
+                    
+                    // Controllo per ogni campo e aggiungo ai mancanti se vuoto
+                    if (!empty($influencer['full_name'])) $completed++; else $missing_fields[] = 'Nome completo';
+                    if (!empty($influencer['bio'])) $completed++; else $missing_fields[] = 'Presentazione per i Brand';
+                    if (!empty($influencer['niche'])) $completed++; else $missing_fields[] = 'Categoria';
+                    // RIMOSSO: Instagram Handle dal calcolo
+                    // if (!empty($influencer['instagram_handle'])) $completed++; else $missing_fields[] = 'Instagram Handle';
+                    if (!empty($influencer['rate'])) $completed++; else $missing_fields[] = 'Tariffa';
+                    if (!empty($influencer['profile_image'])) $completed++; else $missing_fields[] = 'Immagine profilo';
+                    // Campo Nazione
+                    if (!empty($influencer['nationality'])) $completed++; else $missing_fields[] = 'Nazione';
+                    
+                    // Controllo per almeno un social network (Instagram è incluso qui)
+                    $has_social = !empty($influencer['instagram_handle']) || 
+                                  !empty($influencer['tiktok_handle']) || 
+                                  !empty($influencer['youtube_handle']) ||
+                                  !empty($influencer['facebook_handle']) ||
+                                  !empty($influencer['pinterest_handle']) ||
+                                  !empty($influencer['telegram_handle']) ||
+                                  !empty($influencer['twitch_handle']) ||
+                                  !empty($influencer['threads_handle']);
+                    
+                    if ($has_social) {
+                        $completed++;
+                    } else {
+                        $missing_fields[] = 'Almeno un account social (Instagram, TikTok, YouTube, ecc.)';
+                    }
                     
                     $percentage = round(($completed / $total_fields) * 100);
                     ?>
@@ -472,9 +484,42 @@ function hideAdminCommunication(commId) {
                             <?php echo $percentage; ?>%
                         </div>
                     </div>
-                    <small class="text-muted">
-                        Completa tutti i campi per aumentare la tua visibilità del <?php echo (100 - $percentage); ?>%
-                    </small>
+                    
+                    <!-- Sezione Campi Mancanti -->
+                    <?php if ($percentage < 100 && !empty($missing_fields)): ?>
+                        <div class="alert alert-warning mt-3">
+                            <h6 class="alert-heading mb-3">Per completare il tuo profilo, aggiungi:</h6>
+                            <ul class="list-group list-group-flush bg-transparent">
+                                <?php foreach ($missing_fields as $field): ?>
+                                    <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center py-2 border-0">
+                                        <span>
+                                            <?php echo htmlspecialchars($field); ?>
+                                        </span>
+                                        <a href="edit-profile.php" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-plus me-1"></i>Aggiungi
+                                        </a>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <hr class="mt-3">
+                            <p class="mb-0">
+                                <small class="text-muted">
+                                    Un profilo completo aumenta la tua visibilità e le possibilità di essere selezionato per collaborazioni.
+                                </small>
+                            </p>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-success mt-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle fa-lg me-3"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-1">Profilo Completo!</h6>
+                                    <p class="mb-0">Il tuo profilo è al 100%. Continua ad aggiornarlo per mantenere alta la tua visibilità.</p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    
                 </div>
             </div>
 

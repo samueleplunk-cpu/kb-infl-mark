@@ -289,13 +289,53 @@ function hideAdminCommunication(commId) {
                                 <span class="float-end">
                                     <?php 
                                     $completed = 0;
-$total = 5;
-if (!empty($brand['company_name'])) $completed++;
-if (!empty($brand['industry'])) $completed++;
-if (!empty($brand['description'])) $completed++;
-if (!empty($brand['nationality'])) $completed++;
-if (!empty($brand['logo']) && $logo_exists) $completed++;
-echo $completed . '/' . $total;
+                                    $total = 5;
+                                    $missing_fields = [];
+                                    
+                                    if (!empty($brand['company_name'])) {
+                                        $completed++;
+                                    } else {
+                                        $missing_fields[] = 'Nome Azienda';
+                                    }
+                                    
+                                    if (!empty($brand['industry'])) {
+                                        $completed++;
+                                    } else {
+                                        $missing_fields[] = 'Settore';
+                                    }
+                                    
+                                    if (!empty($brand['description'])) {
+                                        $completed++;
+                                    } else {
+                                        $missing_fields[] = 'Descrizione Brand';
+                                    }
+                                    
+                                    if (!empty($brand['nationality'])) {
+                                        $completed++;
+                                    } else {
+                                        $missing_fields[] = 'Nazione';
+                                    }
+                                    
+                                    if (!empty($brand['logo']) && $logo_exists) {
+                                        $completed++;
+                                    } else {
+                                        $missing_fields[] = 'Logo';
+                                    }
+                                    
+                                    // Aggiunta: Verifica campo Sito Web se esiste nella tabella brands
+                                    // Nota: Verificare se il campo 'website' esiste nella struttura del database
+                                    // Se esiste, scommentare queste righe:
+                                    /*
+                                    if (!empty($brand['website'])) {
+                                        $completed++;
+                                        $total++;
+                                    } else {
+                                        $missing_fields[] = 'Sito Web';
+                                        $total++;
+                                    }
+                                    */
+                                    
+                                    echo $completed . '/' . $total;
                                     ?>
                                 </span>
                             </div>
@@ -305,9 +345,33 @@ echo $completed . '/' . $total;
                                     <?php echo round(($completed/$total)*100); ?>%
                                 </div>
                             </div>
-                            <small class="text-muted">
-                                Profilo completo: maggiore visibilità per gli influencer
-                            </small>
+                            
+                            <!-- Sezione: Dati Mancanti -->
+                            <?php if ($completed < $total && !empty($missing_fields)): ?>
+                                <div class="mt-3">
+                                    <small class="text-muted d-block mb-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Per completare il profilo, inserisci:
+                                    </small>
+                                    <ul class="list-group list-group-flush">
+                                        <?php foreach ($missing_fields as $field): ?>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                                <span><?php echo htmlspecialchars($field); ?></span>
+                                                <a href="edit-profile.php" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-plus"></i> Aggiungi
+                                                </a>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php else: ?>
+                                <div class="mt-3">
+                                    <small class="text-success">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        Profilo completo! Ottima visibilità per gli influencer
+                                    </small>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

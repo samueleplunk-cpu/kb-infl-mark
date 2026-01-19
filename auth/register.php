@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success = 'Registrazione completata con successo! Ora puoi effettuare il login.';
                     
                     // Reindirizza al login dopo 3 secondi
-                    header("refresh:3;url=".BASE_URL."auth/login.php?registered=1");
+                    header("refresh:3;url=/auth/login.php?registered=1");
                     
                 } catch (Exception $e) {
                     // ROLLBACK IN CASO DI ERRORE

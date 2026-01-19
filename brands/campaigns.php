@@ -218,7 +218,17 @@ require_once $header_file;
 
         <!-- Statistiche Rapide -->
 <div class="row mb-4">
-    <!-- Attive -->
+    <!-- 1. Totale Campagne -->
+    <div class="col">
+        <div class="card text-white bg-primary">
+            <div class="card-body text-center p-3">
+                <h5 class="card-title"><?php echo count($campaigns); ?></h5>
+                <p class="card-text small">Campagne totali</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 2. Attive -->
     <div class="col">
         <div class="card text-white bg-success">
             <div class="card-body text-center p-3">
@@ -231,7 +241,8 @@ require_once $header_file;
             </div>
         </div>
     </div>
-    <!-- In Pausa -->
+    
+    <!-- 3. In revisione -->
     <div class="col">
         <div class="card text-white bg-warning">
             <div class="card-body text-center p-3">
@@ -241,24 +252,12 @@ require_once $header_file;
                                (!$c['deadline_date'] || strtotime($c['deadline_date']) >= time()); 
                     })); ?>
                 </h5>
-                <p class="card-text small">In Pausa</p>
+                <p class="card-text small">In revisione</p>
             </div>
         </div>
     </div>
-    <!-- Completate -->
-    <div class="col">
-        <div class="card text-white bg-info">
-            <div class="card-body text-center p-3">
-                <h5 class="card-title">
-                    <?php echo count(array_filter($campaigns, function($c) { 
-                        return $c['status'] === 'completed'; 
-                    })); ?>
-                </h5>
-                <p class="card-text small">Completate</p>
-            </div>
-        </div>
-    </div>
-    <!-- Scadute -->
+    
+    <!-- 4. Rifiutate -->
     <div class="col">
         <div class="card text-white bg-danger">
             <div class="card-body text-center p-3">
@@ -268,16 +267,7 @@ require_once $header_file;
                                ($c['deadline_date'] && strtotime($c['deadline_date']) < time()); 
                     })); ?>
                 </h5>
-                <p class="card-text small">Scadute</p>
-            </div>
-        </div>
-    </div>
-    <!-- Totale Campagne -->
-    <div class="col">
-        <div class="card text-white bg-primary">
-            <div class="card-body text-center p-3">
-                <h5 class="card-title"><?php echo count($campaigns); ?></h5>
-                <p class="card-text small">Totale Campagne</p>
+                <p class="card-text small">Rifiutate</p>
             </div>
         </div>
     </div>
@@ -323,9 +313,9 @@ require_once $header_file;
                         <select class="form-select" id="filter_status" name="filter_status">
                             <option value="">Tutti gli stati</option>
                             <option value="active" <?php echo $filter_status === 'active' ? 'selected' : ''; ?>>Attiva</option>
-                            <option value="paused" <?php echo $filter_status === 'paused' ? 'selected' : ''; ?>>In Pausa</option>
-                            <option value="completed" <?php echo $filter_status === 'completed' ? 'selected' : ''; ?>>Completata</option>
-                            <option value="expired" <?php echo $filter_status === 'expired' ? 'selected' : ''; ?>>Scaduta</option>
+                            <option value="paused" <?php echo $filter_status === 'paused' ? 'selected' : ''; ?>>In revisione</option>
+                            <!-- Opzione "Completata" rimossa -->
+                            <option value="expired" <?php echo $filter_status === 'expired' ? 'selected' : ''; ?>>Rifiutata</option>
                         </select>
                     </div>
                     
@@ -333,10 +323,10 @@ require_once $header_file;
                     <div class="col-md-3">
                         <div class="d-grid gap-2 d-md-flex">
                             <button type="submit" class="btn btn-primary flex-fill me-md-2">
-                                <i class="fas fa-search me-1"></i>Applica Filtri
+                                Applica filtri
                             </button>
                             <a href="campaigns.php" class="btn btn-outline-secondary flex-fill">
-                                <i class="fas fa-undo me-1"></i>Reset
+                                Reset
                             </a>
                         </div>
                     </div>
@@ -357,11 +347,12 @@ require_once $header_file;
                                 $active_filters[] = "Categoria: \"$filter_category\"";
                             }
                             if (!empty($filter_status)) {
+                                // Aggiornato con i nuovi label
                                 $status_labels = [
                                     'active' => 'Attiva',
-                                    'paused' => 'In Pausa',
+                                    'paused' => 'In revisione',
                                     'completed' => 'Completata',
-                                    'expired' => 'Scaduta'
+                                    'expired' => 'Rifiutata'
                                 ];
                                 $active_filters[] = "Stato: \"{$status_labels[$filter_status]}\"";
                             }
@@ -448,21 +439,19 @@ require_once $header_file;
                                 </td>
                                 <td>
                                     <?php
-                                    $status_badges = [
-                                        'draft' => ['class' => 'secondary', 'icon' => 'fas fa-edit', 'text' => 'Bozza'],
-                                        'active' => ['class' => 'success', 'icon' => 'fas fa-play', 'text' => 'Attiva'],
-                                        'paused' => ['class' => 'warning', 'icon' => 'fas fa-pause', 'text' => 'In pausa'],
-                                        'completed' => ['class' => 'info', 'icon' => 'fas fa-check', 'text' => 'Completata'],
-                                        'expired' => ['class' => 'danger', 'icon' => 'fas fa-clock', 'text' => 'Scaduta'],
-                                        'cancelled' => ['class' => 'dark', 'icon' => 'fas fa-times', 'text' => 'Cancellata']
+                                    // Aggiornato con i nuovi label
+                                    $status_texts = [
+                                        'draft' => 'Bozza',
+                                        'active' => 'Attiva',
+                                        'paused' => 'In revisione', // Modificato: In pausa → In revisione
+                                        'completed' => 'Completata',
+                                        'expired' => 'Rifiutata',   // Modificato: Scaduta → Rifiutata
+                                        'cancelled' => 'Cancellata'
                                     ];
                                     
-                                    $status_config = $status_badges[$effective_status] ?? $status_badges['draft'];
+                                    $status_text = $status_texts[$effective_status] ?? 'Bozza';
                                     ?>
-                                    <span class="badge bg-<?php echo $status_config['class']; ?>">
-                                        <i class="<?php echo $status_config['icon']; ?> me-1"></i>
-                                        <?php echo $status_config['text']; ?>
-                                    </span>
+                                    <?php echo $status_text; ?>
                                     
                                     <?php if ($effective_status === 'paused' && !$is_expired && $campaign['deadline_date']): ?>
                                         <br>

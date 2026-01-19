@@ -286,7 +286,8 @@ function getInfluencerById($id) {
     $sql = "SELECT u.*, 
                    COALESCE(NULLIF(i.full_name, ''), u.name) as display_name,
                    i.full_name as influencer_full_name,
-                   i.profile_image as influencer_avatar
+                   i.profile_image as influencer_avatar,
+				   i.nationality as influencer_nationality
             FROM users u 
             LEFT JOIN influencers i ON u.id = i.user_id
             WHERE u.id = ? AND u.user_type = 'influencer'";
