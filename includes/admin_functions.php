@@ -158,9 +158,11 @@ function unblock_user($user_id) {
  */
 function buildQueryString($filters) {
     $params = [];
-    foreach ($filters as $key => $value) {
-        if (!empty($value)) {
-            $params[] = $key . '=' . urlencode($value);
+    $filter_keys = ['search', 'status', 'brand_search', 'niche', 'date_from', 'date_to'];
+    
+    foreach ($filter_keys as $key) {
+        if (isset($filters[$key]) && !empty($filters[$key])) {
+            $params[] = $key . '=' . urlencode($filters[$key]);
         }
     }
     return $params ? '&' . implode('&', $params) : '';
@@ -1128,6 +1130,30 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
         }
     }
     
+    if (!empty($filters['brand_search'])) {
+        // Cerca in TUTTI questi campi:
+        // 1. u.name (username)
+        // 2. u.email (email)
+        // 3. b.company_name (nome azienda dalla tabella brands)
+        // 4. u.company_name (nome azienda dalla tabella users - backup)
+        $where_conditions[] = "(u.name LIKE :brand_search_name OR 
+                              u.email LIKE :brand_search_email OR 
+                              b.company_name LIKE :brand_search_company OR
+                              u.company_name LIKE :brand_search_user_company)";
+        
+        $search_term = '%' . $filters['brand_search'] . '%';
+        $params[':brand_search_name'] = $search_term;
+        $params[':brand_search_email'] = $search_term;
+        $params[':brand_search_company'] = $search_term;
+        $params[':brand_search_user_company'] = $search_term;
+    }
+    
+    // Filtro Categoria
+    if (!empty($filters['niche'])) {
+        $where_conditions[] = "c.niche = :niche";
+        $params[':niche'] = $filters['niche'];
+    }
+    
     if (!empty($filters['brand_id'])) {
         $where_conditions[] = "c.brand_id = :brand_id";
         $params[':brand_id'] = $filters['brand_id'];
@@ -1148,34 +1174,40 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
     // Query per il conteggio totale
     $count_sql = "SELECT COUNT(*) as total 
                   FROM campaigns c 
+                  LEFT JOIN brands b ON c.brand_id = b.id
+                  LEFT JOIN users u ON b.user_id = u.id
                   WHERE " . $where_sql;
     
     $stmt = $pdo->prepare($count_sql);
     $stmt->execute($params);
     $total = $stmt->fetchColumn();
     
-    // === SOLUZIONE DEFINITIVA: Usa stessa logica di brands.php ===
+    // Query per i dati
     $sql = "SELECT c.*, 
-                   -- Stessa logica esatta usata in brands.php
                    COALESCE(
                        NULLIF(b.company_name, ''), 
                        NULLIF(u.company_name, ''), 
                        u.name
                    ) as brand_display_name,
+                   u.email as brand_email,
+                   u.name as brand_username,  -- Aggiunto per debug
+                   b.company_name as brand_company,  -- Aggiunto per debug
+                   u.company_name as user_company,  -- Aggiunto per debug
                    (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
                    (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
             FROM campaigns c 
-            -- CORREZIONE: brand_id si riferisce a brands.id, poi users tramite user_id
             LEFT JOIN brands b ON c.brand_id = b.id
             LEFT JOIN users u ON b.user_id = u.id
             WHERE " . $where_sql . " 
             ORDER BY c.created_at DESC LIMIT :limit OFFSET :offset";
     
+    // Aggiungi parametri di paginazione
     $params[':limit'] = $per_page;
     $params[':offset'] = $offset;
     
     $stmt = $pdo->prepare($sql);
     
+    // Bind dei parametri
     foreach ($params as $key => $value) {
         if ($key === ':limit' || $key === ':offset') {
             $stmt->bindValue($key, (int)$value, PDO::PARAM_INT);
@@ -1210,6 +1242,7 @@ function getCampaignById($id) {
                        NULLIF(u.company_name, ''), 
                        u.name
                    ) as brand_display_name,
+				    u.email as brand_email,
                    (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
                    (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
             FROM campaigns c 
@@ -1432,6 +1465,55 @@ function getAllBrands() {
     $stmt->execute();
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Recupera le categorie dal sistema centralizzato
+ * Compatibile con /admin/general-settings.php
+ */
+function getCategories() {
+    global $pdo;
+    
+    try {
+        // Prima prova a usare la tabella categories (da general-settings.php)
+        $sql = "SELECT name, slug FROM categories WHERE is_active = 1 ORDER BY display_order, name";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Se non ci sono categorie nella tabella, usa valori di default
+        if (empty($categories)) {
+            $categories = [
+                ['name' => 'Fashion', 'slug' => 'fashion'],
+                ['name' => 'Beauty', 'slug' => 'beauty'],
+                ['name' => 'Lifestyle', 'slug' => 'lifestyle'],
+                ['name' => 'Travel', 'slug' => 'travel'],
+                ['name' => 'Food', 'slug' => 'food'],
+                ['name' => 'Fitness', 'slug' => 'fitness'],
+                ['name' => 'Tech', 'slug' => 'tech'],
+                ['name' => 'Gaming', 'slug' => 'gaming'],
+                ['name' => 'Parenting', 'slug' => 'parenting'],
+                ['name' => 'Business', 'slug' => 'business']
+            ];
+        }
+        
+        return $categories;
+    } catch (PDOException $e) {
+        // Se la tabella categories non esiste, usa i valori hardcoded
+        error_log("Tabella categories non trovata, usando valori di default: " . $e->getMessage());
+        return [
+            ['name' => 'Fashion', 'slug' => 'fashion'],
+            ['name' => 'Beauty', 'slug' => 'beauty'],
+            ['name' => 'Lifestyle', 'slug' => 'lifestyle'],
+            ['name' => 'Travel', 'slug' => 'travel'],
+            ['name' => 'Food', 'slug' => 'food'],
+            ['name' => 'Fitness', 'slug' => 'fitness'],
+            ['name' => 'Tech', 'slug' => 'tech'],
+            ['name' => 'Gaming', 'slug' => 'gaming'],
+            ['name' => 'Parenting', 'slug' => 'parenting'],
+            ['name' => 'Business', 'slug' => 'business']
+        ];
+    }
 }
 
 /**

@@ -252,31 +252,20 @@ if ($action === 'list') {
                 
                 <!-- Filtri -->
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-filter me-2"></i>Filtri
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" class="row g-3">
-                            <input type="hidden" name="action" value="list">
-                            
-                            <div class="col-md-2">
-                                <label for="search" class="form-label">Titolo sponsor</label>
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-filter me-2"></i>Filtri
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <input type="hidden" name="action" value="list">
+            
+            <div class="col-md-2">
+                <label for="search" class="form-label">Titolo sponsor</label>
                                 <input type="text" class="form-control" id="search" name="search" 
                                        value="<?php echo htmlspecialchars($filters['search']); ?>" 
                                        placeholder="Cerca titolo...">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="status" class="form-label">Stato</label>
-                                <!-- MODIFICA 2: Rimosse opzioni "Completati" e "Bozza" -->
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">Tutti</option>
-                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
-                                    <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>In revisione</option>
-                                    <option value="rejected" <?php echo $filters['status'] === 'rejected' ? 'selected' : ''; ?>>Rifiutati</option>
-                                </select>
                             </div>
                             
                             <div class="col-md-2">
@@ -303,14 +292,22 @@ if ($action === 'list') {
                                 </select>
                             </div>
                             
-                            <!-- MODIFICA 3: Pulsante "Cerca" senza icona -->
+                            <div class="col-md-2">
+                                <label for="status" class="form-label">Stato</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="">Tutti</option>
+                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
+                                    <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>In revisione</option>
+                                    <option value="rejected" <?php echo $filters['status'] === 'rejected' ? 'selected' : ''; ?>>Rifiutati</option>
+                                </select>
+                            </div>
+                            
                             <div class="col-md-2 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary w-100">
                                     Cerca
                                 </button>
                             </div>
                             
-                            <!-- MODIFICA 3: Pulsante "Reset" senza icona -->
                             <div class="col-md-2 d-flex align-items-end">
                                 <a href="?action=list" class="btn btn-outline-secondary w-100">
                                     Reset
@@ -322,167 +319,170 @@ if ($action === 'list') {
                 
                 <!-- Tabella Sponsor -->
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-list me-2"></i>Lista Sponsor 
-                            <span class="badge bg-secondary"><?php echo $total_count; ?></span>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <?php if (empty($sponsors)): ?>
-                            <div class="alert alert-info text-center py-4">
-                                <i class="fas fa-handshake fa-3x text-muted mb-3"></i>
-                                <h5>Nessuno sponsor trovato</h5>
-                                <p class="text-muted">Utilizza i filtri per trovare gli sponsor.</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Copertina</th>
-                                            <th>Titolo Sponsor</th>
-                                            <th>Budget</th>
-                                            <th>Categoria</th>
-                                            <th>Stato</th>
-                                            <th>Influencer</th> <!-- Spostata qui dopo Stato -->
-                                            <th>Azioni</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($sponsors as $sponsor): ?>
-                                            <tr>
-                                                <!-- MODIFICA: Colonna Copertina - Mostra solo immagine se esiste -->
-                                                <td>
-                                                    <?php if ($sponsor['image_url']): ?>
-                                                        <?php
-                                                        // Correzione del percorso immagine
-                                                        $image_path = '/uploads/sponsor/' . basename($sponsor['image_url']);
-                                                        ?>
-                                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
-                                                             alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
-                                                             class="rounded" style="width: 40px; height: 40px; object-fit: cover;"
-                                                             onerror="this.onerror=null; this.style.display='none';">
-                                                    <?php else: ?>
-                                                        <div class="rounded bg-light d-flex align-items-center justify-content-center" 
-                                                             style="width: 40px; height: 40px;">
-                                                            <i class="fas fa-image text-muted"></i>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </td>
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>Lista Sponsor 
+            <span class="badge bg-secondary"><?php echo $total_count; ?></span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($sponsors)): ?>
+            <div class="alert alert-info text-center py-4">
+                <i class="fas fa-handshake fa-3x text-muted mb-3"></i>
+                <h5>Nessuno sponsor trovato</h5>
+                <p class="text-muted">Utilizza i filtri per trovare gli sponsor.</p>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Copertina</th>
+                            <th>Titolo Sponsor</th>
+                            <th>Influencer</th>
+                            <th>Budget</th>
+                            <th>Categoria</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($sponsors as $sponsor): ?>
+                            <tr>
+                                <!-- Colonna Copertina - Mostra solo immagine se esiste -->
+                                <td>
+                                    <?php if ($sponsor['image_url']): ?>
+                                        <?php
+                                        // Correzione del percorso immagine
+                                        $image_path = '/uploads/sponsor/' . basename($sponsor['image_url']);
+                                        ?>
+                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
+                                             alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                             class="rounded" style="width: 40px; height: 40px; object-fit: cover;"
+                                             onerror="this.onerror=null; this.style.display='none';">
+                                    <?php else: ?>
+                                        <div class="rounded bg-light d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                
+                                <td>
+                                    <div>
+                                        <strong><?php echo htmlspecialchars($sponsor['title']); ?></strong>
+                                        <?php if ($sponsor['platforms']): ?>
+                                            <br>
+                                            <small class="text-muted">
+                                                <?php
+                                                $platforms = json_decode($sponsor['platforms'], true) ?: [];
+                                                // MODIFICA: Recupera le icone corrette dalle impostazioni
+                                                require_once '../includes/general_settings_functions.php';
+                                                $social_networks_settings = get_social_networks_settings();
+                                                $social_networks = $social_networks_settings['social_networks'] ?? [];
                                                 
-                                                <td>
-                                                    <div>
-                                                        <strong><?php echo htmlspecialchars($sponsor['title']); ?></strong>
-                                                        <?php if ($sponsor['platforms']): ?>
-                                                            <br>
-                                                            <small class="text-muted">
-                                                                <?php
-                                                                $platforms = json_decode($sponsor['platforms'], true) ?: [];
-                                                                // MODIFICA: Recupera le icone corrette dalle impostazioni
-                                                                require_once '../includes/general_settings_functions.php';
-                                                                $social_networks_settings = get_social_networks_settings();
-                                                                $social_networks = $social_networks_settings['social_networks'] ?? [];
-                                                                
-                                                                $platform_icons = [];
-                                                                foreach ($social_networks as $social) {
-                                                                    if (!empty($social['is_active']) || $social['active'] ?? true) {
-                                                                        $platform_icons[$social['slug']] = $social['icon'];
-                                                                    }
-                                                                }
-                                                                foreach ($platforms as $platform): 
-                                                                    $icon_class = $platform_icons[$platform] ?? 'fa-globe';
-                                                                ?>
-                                                                    <i class="<?php echo $icon_class; ?> me-1"></i>
-                                                                <?php endforeach; ?>
-                                                            </small>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                
-                                                <td>
-                                                    <strong><?php echo number_format($sponsor['budget'], 2); ?> €</strong>
-                                                </td>
-                                                <td>
-                                                    <?php 
-                                                    // Mappa lo slug della categoria al nome completo
-                                                    $category_slug = $sponsor['category'];
-                                                    $category_name = $category_slug; // Default: mostra lo slug
-                                                    
-                                                    // Cerca il nome della categoria nella lista
-                                                    foreach ($categories_list as $category) {
-                                                        if (($category['slug'] ?? normalizeCategoryForFilter($category['name'])) === $category_slug) {
-                                                            $category_name = $category['name'];
-                                                            break;
-                                                        }
+                                                $platform_icons = [];
+                                                foreach ($social_networks as $social) {
+                                                    if (!empty($social['is_active']) || $social['active'] ?? true) {
+                                                        $platform_icons[$social['slug']] = $social['icon'];
                                                     }
-                                                    
-                                                    echo htmlspecialchars($category_name);
-                                                    ?>
-                                                </td>
-                                                <td>
-                                                    <?php 
-                                                    $status_badge = '';
-                                                    switch ($sponsor['status']) {
-                                                        case 'active':
-                                                            $status_badge = '<span class="badge bg-success"><i class="fas fa-play me-1"></i> Attivo</span>';
-                                                            break;
-                                                        case 'pending':
-                                                            $status_badge = '<span class="badge bg-warning"><i class="fas fa-clock me-1"></i> In revisione</span>';
-                                                            break;
-                                                        case 'completed':
-                                                            $status_badge = '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completato</span>';
-                                                            break;
-                                                        case 'rejected':
-                                                            $status_badge = '<span class="badge bg-danger"><i class="fas fa-times me-1"></i> Rifiutato</span>';
-                                                            break;
-                                                        case 'draft':
-                                                            $status_badge = '<span class="badge bg-secondary"><i class="fas fa-edit me-1"></i> Bozza</span>';
-                                                            break;
-                                                        default:
-                                                            $status_badge = '<span class="badge bg-light text-dark">' . htmlspecialchars($sponsor['status']) . '</span>';
-                                                    }
-                                                    echo $status_badge;
-                                                    ?>
-                                                </td>
-                                                
-                                                <!-- MODIFICA: Colonna Influencer spostata qui dopo Stato -->
-                                                <td>
-                                                    <div>
-                                                        <strong><?php echo htmlspecialchars($sponsor['influencer_email']); ?></strong>
-                                                        <?php if (!empty($sponsor['influencer_name'])): ?>
-                                                            <br>
-                                                            <small class="text-muted"><?php echo htmlspecialchars($sponsor['influencer_name']); ?></small>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                
-                                                <td>
-    <div class="d-flex gap-2">
-        <!-- Modifica -->
-        <a href="?action=edit&id=<?php echo $sponsor['id']; ?>" 
-           class="btn btn-outline-primary btn-sm" title="Modifica">
-            <i class="fas fa-edit"></i>
-        </a>
-        
-        <!-- Elimina -->
-        <button type="button" class="btn btn-outline-danger btn-sm" 
-                data-bs-toggle="modal" 
-                data-bs-target="#deleteModal<?php echo $sponsor['id']; ?>"
-                title="Elimina">
-            <i class="fas fa-trash"></i>
-        </button>
-        
-        <!-- Richiesta informazioni (icona only) -->
-        <button type="button" class="btn btn-outline-info btn-sm" 
-                data-bs-toggle="modal" 
-                data-bs-target="#infoRequestModal<?php echo $sponsor['id']; ?>"
-                title="Richiesta informazioni">
-            <i class="fas fa-info-circle"></i>
-        </button>
+                                                }
+                                                foreach ($platforms as $platform): 
+                                                    $icon_class = $platform_icons[$platform] ?? 'fa-globe';
+                                                ?>
+                                                    <i class="<?php echo $icon_class; ?> me-1"></i>
+                                                <?php endforeach; ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                
+                                <td>
+    <div>
+        <?php if (!empty($sponsor['influencer_name'])): ?>
+            <strong><?php echo htmlspecialchars($sponsor['influencer_name']); ?></strong>
+            <br>
+            <small class="text-muted"><?php echo htmlspecialchars($sponsor['influencer_email']); ?></small>
+        <?php else: ?>
+            <strong><?php echo htmlspecialchars($sponsor['influencer_email']); ?></strong>
+        <?php endif; ?>
     </div>
 </td>
-                                            </tr>
+                                
+                                <td>
+                                    <strong><?php echo number_format($sponsor['budget'], 2); ?> €</strong>
+                                </td>
+                                
+                                <td>
+                                    <?php 
+                                    // Mappa lo slug della categoria al nome completo
+                                    $category_slug = $sponsor['category'];
+                                    $category_name = $category_slug; // Default: mostra lo slug
+                                    
+                                    // Cerca il nome della categoria nella lista
+                                    foreach ($categories_list as $category) {
+                                        if (($category['slug'] ?? normalizeCategoryForFilter($category['name'])) === $category_slug) {
+                                            $category_name = $category['name'];
+                                            break;
+                                        }
+                                    }
+                                    
+                                    echo htmlspecialchars($category_name);
+                                    ?>
+                                </td>
+                                
+                                <td>
+    <?php 
+    $status_text = '';
+    switch ($sponsor['status']) {
+        case 'active':
+            $status_text = 'Attivo';
+            break;
+        case 'pending':
+            $status_text = 'In revisione';
+            break;
+        case 'completed':
+            $status_text = 'Completato';
+            break;
+        case 'rejected':
+            $status_text = 'Rifiutato';
+            break;
+        case 'draft':
+            $status_text = 'Bozza';
+            break;
+        default:
+            $status_text = htmlspecialchars($sponsor['status']);
+    }
+    echo $status_text;
+    ?>
+</td>
+                                
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        <!-- Modifica -->
+                                        <a href="?action=edit&id=<?php echo $sponsor['id']; ?>" 
+                                           class="btn btn-outline-primary btn-sm" title="Modifica">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        
+                                        <!-- Elimina -->
+                                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteModal<?php echo $sponsor['id']; ?>"
+                                                title="Elimina">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        
+                                        <!-- Richiesta informazioni (icona only) -->
+                                        <button type="button" class="btn btn-outline-info btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#infoRequestModal<?php echo $sponsor['id']; ?>"
+                                                title="Richiesta informazioni">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
 
                                             <!-- Modal Richiesta Informazioni -->
                                             <div class="modal fade" id="infoRequestModal<?php echo $sponsor['id']; ?>" tabindex="-1">

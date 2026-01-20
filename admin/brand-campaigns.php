@@ -28,6 +28,23 @@ if (mt_rand(1, 10) === 1) {
     checkExpiredPausedCampaigns();
 }
 
+/**
+ * Recupera le categorie dal sistema centralizzato
+ */
+function getCategoriesFromSystem() {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT name, slug FROM categories WHERE is_active = 1 ORDER BY display_order, name";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Errore recupero categorie: " . $e->getMessage());
+        return [];
+    }
+}
+
 // Gestione azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_campaign'])) {
@@ -228,7 +245,8 @@ if ($action === 'list') {
     $filters = [
         'status' => isset($_GET['status']) ? $_GET['status'] : '',
         'search' => isset($_GET['search']) ? $_GET['search'] : '',
-        'brand_id' => isset($_GET['brand_id']) ? $_GET['brand_id'] : '',
+        'brand_search' => isset($_GET['brand_search']) ? $_GET['brand_search'] : '',
+        'niche' => isset($_GET['niche']) ? $_GET['niche'] : '', // NUOVO FILTRO
         'date_from' => isset($_GET['date_from']) ? $_GET['date_from'] : '',
         'date_to' => isset($_GET['date_to']) ? $_GET['date_to'] : ''
     ];
@@ -248,9 +266,6 @@ if ($action === 'list') {
                     <h1 class="h3">
                         <i class="fas fa-bullhorn me-2"></i>Gestione Campagne Brand
                     </h1>
-                    <a href="?action=add" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Nuova Campagna
-                    </a>
                 </div>
                 
                 <?php echo $message; ?>
@@ -278,25 +293,10 @@ if ($action === 'list') {
                 <div class="d-flex justify-content-between">
                     <div>
                         <div class="fs-4 fw-bold"><?php echo getCampaignsCount('paused'); ?></div>
-                        <div>In Pausa</div>
+                        <div>In revisione</div> <!-- Modificato: In Pausa → In revisione -->
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-pause-circle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card bg-info text-white mb-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('completed'); ?></div>
-                        <div>Completate</div>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-check-circle fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -308,7 +308,7 @@ if ($action === 'list') {
                 <div class="d-flex justify-content-between">
                     <div>
                         <div class="fs-4 fw-bold"><?php echo getCampaignsCount('expired'); ?></div>
-                        <div>Scadute</div>
+                        <div>Rifiutate</div> <!-- Modificato: Scadute → Rifiutate -->
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-clock fa-2x"></i>
@@ -342,49 +342,57 @@ if ($action === 'list') {
         </h5>
     </div>
     <div class="card-body">
-        <form method="get" class="row g-3">
+        <form method="get" class="row g-3 align-items-end"> <!-- Aggiunto align-items-end -->
             <input type="hidden" name="action" value="list">
             
-            <div class="col-md-3">
-                <label for="search" class="form-label">Cerca</label>
-                <input type="text" class="form-control" id="search" name="search" 
+            <div class="col-md-3 col-sm-6">
+                <label for="search" class="form-label">Titolo campagna</label>
+                <input type="text" class="form-control form-control-sm" id="search" name="search" 
                        value="<?php echo htmlspecialchars($filters['search']); ?>" 
                        placeholder="Nome campagna...">
             </div>
             
-            <div class="col-md-2">
-                <label for="brand_id" class="form-label">Brand</label>
-                <select class="form-select" id="brand_id" name="brand_id">
-                    <option value="">Tutti i brand</option>
-                    <?php foreach ($brands_list as $brand): ?>
-                        <option value="<?php echo $brand['id']; ?>" 
-                                <?php echo $filters['brand_id'] == $brand['id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($brand['company_name'] ?: $brand['name']); ?>
+            <div class="col-md-3 col-sm-6">
+                <label for="brand_search" class="form-label">Nome brand</label>
+                <input type="text" class="form-control form-control-sm" id="brand_search" name="brand_search" 
+                       value="<?php echo htmlspecialchars($filters['brand_search'] ?? ''); ?>" 
+                       placeholder="Cerca brand...">
+            </div>
+            
+            <div class="col-md-2 col-sm-6">
+                <label for="niche" class="form-label">Categoria</label>
+                <select class="form-select form-select-sm" id="niche" name="niche">
+                    <option value="">Tutte le categorie</option>
+                    <?php 
+                    $categories = getCategoriesFromSystem();
+                    foreach ($categories as $category): ?>
+                        <option value="<?php echo htmlspecialchars($category['name']); ?>"
+                            <?php echo (isset($filters['niche']) && $filters['niche'] === $category['name']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($category['name']); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
             
-            <div class="col-md-2">
+            <div class="col-md-2 col-sm-6">
                 <label for="status" class="form-label">Stato</label>
-                <select class="form-select" id="status" name="status">
+                <select class="form-select form-select-sm" id="status" name="status">
                     <option value="">Tutti</option>
                     <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attive</option>
-                    <option value="paused" <?php echo $filters['status'] === 'paused' ? 'selected' : ''; ?>>In pausa</option>
-                    <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completate</option>
-                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Scadute</option>
+                    <option value="paused" <?php echo $filters['status'] === 'paused' ? 'selected' : ''; ?>>In revisione</option>
+                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Rifiutate</option>
                 </select>
             </div>
             
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100 me-2">
-                    <i class="fas fa-search"></i> Cerca
+            <div class="col-md-1 col-sm-6">
+                <button type="submit" class="btn btn-primary btn-sm w-100 h-100 d-flex align-items-center justify-content-center">
+                    <span>Cerca</span>
                 </button>
             </div>
             
-            <div class="col-md-2 d-flex align-items-end">
-                <a href="?action=list" class="btn btn-outline-secondary w-100">
-                    <i class="fas fa-refresh"></i> Reset
+            <div class="col-md-1 col-sm-6">
+                <a href="?action=list" class="btn btn-outline-secondary btn-sm w-100 h-100 d-flex align-items-center justify-content-center">
+                    <span>Reset</span>
                 </a>
             </div>
         </form>
@@ -393,36 +401,35 @@ if ($action === 'list') {
                 
                 <!-- Tabella Campagne -->
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-list me-2"></i>Lista Campagne 
-                            <span class="badge bg-secondary"><?php echo $total_count; ?></span>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <?php if (empty($campaigns)): ?>
-                            <div class="alert alert-info text-center py-4">
-                                <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
-                                <h5>Nessuna campagna trovata</h5>
-                                <p class="text-muted">Utilizza i filtri per trovare le campagne o <a href="?action=add">creane una nuova</a>.</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Titolo Campagna</th>
-                                            <th>Brand</th>
-                                            <th>Budget</th>
-                                            <th>Stato</th>
-                                            <th>Date</th>
-                                            <th>Scadenza</th>
-                                            <th>Richieste Pausa</th>
-                                            <th>Azioni</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($campaigns as $campaign): 
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>Lista Campagne 
+            <span class="badge bg-secondary"><?php echo $total_count; ?></span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <?php if (empty($campaigns)): ?>
+            <div class="alert alert-info text-center py-4">
+                <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                <h5>Nessuna campagna trovata</h5>
+                <p class="text-muted">Utilizza i filtri per trovare le campagne o <a href="?action=add">creane una nuova</a>.</p>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Titolo Campagna</th>
+                            <th>Brand</th>
+                            <th>Budget</th>
+                            <th>Categoria</th>
+                            <!-- RIMOSSA: <th>Richieste Pausa</th> -->
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($campaigns as $campaign): 
     $pause_requests = getCampaignPauseRequests($campaign['id']);
     $pending_requests = array_filter($pause_requests, function($req) {
         return $req['status'] === 'pending';
@@ -450,90 +457,60 @@ if ($action === 'list') {
                                                         </div>
                                                         <div>
                                                             <strong><?php echo htmlspecialchars($campaign['name']); ?></strong>
-                                                            <?php if ($campaign['niche']): ?>
-                                                                <br>
-                                                                <small class="text-muted">
-                                                                    <i class="fas fa-tag"></i> <?php echo htmlspecialchars($campaign['niche']); ?>
-                                                                </small>
-                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
     <strong><?php echo htmlspecialchars_decode($campaign['brand_display_name']); ?></strong>
+    <?php if (!empty($campaign['brand_email'])): ?>
+        <br>
+        <small class="text-muted" style="font-size: 0.85em;">
+            <?php echo htmlspecialchars($campaign['brand_email']); ?>
+        </small>
+    <?php endif; ?>
 </td>
                                                 <td>
                                                     <strong><?php echo number_format($campaign['budget'], 2); ?> <?php echo htmlspecialchars($campaign['currency']); ?></strong>
+                                                </td>
+                                                <td>
+                                                    <?php if ($campaign['niche']): ?>
+                                                        <span>
+                                                            <?php echo htmlspecialchars($campaign['niche']); ?>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="text-muted small">Nessuna</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
     <?php 
     // CALCOLO STATO: Priorità alla scadenza
     if ($campaign['status'] === 'expired') {
         // Caso 1: Status esplicitamente 'expired'
-        echo '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
+        echo 'Rifiutata';
     } elseif ($campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time()) {
         // Caso 2: Deadline passata per campagne active/paused
-        echo '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
+        echo 'Rifiutata';
     } else {
         // Caso 3: Altri stati normali
         switch ($campaign['status']) {
             case 'active':
-                echo '<span class="badge bg-success"><i class="fas fa-play me-1"></i> Attiva</span>';
+                echo 'Attiva';
                 break;
             case 'paused':
-                echo '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
-                if (count($pending_requests) > 0) {
-                    echo ' <span class="badge bg-danger" title="Richieste integrazioni pendenti"><i class="fas fa-exclamation-circle"></i></span>';
-                }
+                echo 'In revisione';
                 break;
             case 'completed':
-                echo '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completata</span>';
+                echo 'Completata';
                 break;
             case 'draft':
-                echo '<span class="badge bg-secondary"><i class="fas fa-edit me-1"></i> Bozza</span>';
+                echo 'Bozza';
                 break;
             default:
-                echo '<span class="badge bg-light text-dark">' . htmlspecialchars($campaign['status']) . '</span>';
+                echo htmlspecialchars($campaign['status']);
         }
     }
     ?>
 </td>
-                                                <td>
-                                                    <small>
-                                                        <strong>Inizio:</strong> <?php echo date('d/m/Y', strtotime($campaign['start_date'])); ?><br>
-                                                        <?php if ($campaign['end_date']): ?>
-                                                            <strong>Fine:</strong> <?php echo date('d/m/Y', strtotime($campaign['end_date'])); ?>
-                                                        <?php else: ?>
-                                                            <span class="text-muted">Nessuna fine</span>
-                                                        <?php endif; ?>
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <?php if ($campaign['deadline_date']): ?>
-                                                        <small class="<?php echo strtotime($campaign['deadline_date']) < time() ? 'text-danger fw-bold' : 'text-muted'; ?>">
-                                                            <?php echo date('d/m/Y', strtotime($campaign['deadline_date'])); ?>
-                                                            <?php if (strtotime($campaign['deadline_date']) < time()): ?>
-                                                                <br><span class="badge bg-danger">Scaduta</span>
-                                                            <?php endif; ?>
-                                                        </small>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">Nessuna</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <?php if (count($pause_requests) > 0): ?>
-                                                        <div class="small">
-                                                            <span class="badge bg-<?php echo count($pending_requests) > 0 ? 'warning' : 'secondary'; ?>">
-                                                                <?php echo count($pending_requests); ?> pendenti
-                                                            </span>
-                                                            <span class="badge bg-info">
-                                                                <?php echo count($pause_requests); ?> totali
-                                                            </span>
-                                                        </div>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">Nessuna</span>
-                                                    <?php endif; ?>
-                                                </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" style="gap: 2px;">
                                                         <!-- Modifica -->
@@ -647,44 +624,44 @@ if ($action === 'list') {
                             
                             <!-- Paginazione -->
                             <?php if ($total_pages > 1): ?>
-                            <nav aria-label="Paginazione campagne">
-                                <ul class="pagination justify-content-center">
-                                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?action=list&page=1<?php echo buildQueryString($filters); ?>">
-                                            <i class="fas fa-angle-double-left"></i>
-                                        </a>
-                                    </li>
-                                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?action=list&page=<?php echo $page - 1; ?><?php echo buildQueryString($filters); ?>">
-                                            <i class="fas fa-angle-left"></i>
-                                        </a>
-                                    </li>
-                                    
-                                    <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                        <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                            <a class="page-link" href="?action=list&page=<?php echo $i; ?><?php echo buildQueryString($filters); ?>">
-                                                <?php echo $i; ?>
-                                            </a>
-                                        </li>
-                                    <?php endfor; ?>
-                                    
-                                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?action=list&page=<?php echo $page + 1; ?><?php echo buildQueryString($filters); ?>">
-                                            <i class="fas fa-angle-right"></i>
-                                        </a>
-                                    </li>
-                                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?action=list&page=<?php echo $total_pages; ?><?php echo buildQueryString($filters); ?>">
-                                            <i class="fas fa-angle-double-right"></i>
-                                        </a>
-                                    </li>
-                                </ul>
-                                <div class="text-center text-muted mt-2">
-                                    Pagina <?php echo $page; ?> di <?php echo $total_pages; ?> 
-                                    (Totale: <?php echo $total_count; ?> campagne)
-                                </div>
-                            </nav>
-                            <?php endif; ?>
+<nav aria-label="Paginazione campagne">
+    <ul class="pagination justify-content-center">
+        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?action=list&page=1<?php echo buildQueryString($filters); ?>">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?action=list&page=<?php echo $page - 1; ?><?php echo buildQueryString($filters); ?>">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        
+        <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+            <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
+                <a class="page-link" href="?action=list&page=<?php echo $i; ?><?php echo buildQueryString($filters); ?>">
+                    <?php echo $i; ?>
+                </a>
+            </li>
+        <?php endfor; ?>
+        
+        <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?action=list&page=<?php echo $page + 1; ?><?php echo buildQueryString($filters); ?>">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+            <a class="page-link" href="?action=list&page=<?php echo $total_pages; ?><?php echo buildQueryString($filters); ?>">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+        </li>
+    </ul>
+    <div class="text-center text-muted mt-2">
+        Pagina <?php echo $page; ?> di <?php echo $total_pages; ?> 
+        (Totale: <?php echo $total_count; ?> campagne)
+    </div>
+</nav>
+<?php endif; ?>
                             
                         <?php endif; ?>
                     </div>
@@ -712,7 +689,8 @@ if ($action === 'list') {
     
     $brands_list = getAllBrands();
     $platforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'linkedin'];
-    $niches = ['Fashion', 'Beauty', 'Lifestyle', 'Travel', 'Food', 'Fitness', 'Tech', 'Gaming', 'Parenting', 'Business'];
+    // Usa le categorie dinamiche invece di quelle hardcoded
+    $categories = getCategoriesFromSystem();
     ?>
     
     <div class="container-fluid">
@@ -811,10 +789,10 @@ if ($action === 'list') {
                                                 <label for="niche" class="form-label">Categoria</label>
                                                 <select class="form-select" id="niche" name="niche">
                                                     <option value="">Seleziona categoria</option>
-                                                    <?php foreach ($niches as $niche): ?>
-                                                        <option value="<?php echo $niche; ?>" 
-                                                                <?php echo ($campaign['niche'] ?? '') === $niche ? 'selected' : ''; ?>>
-                                                            <?php echo $niche; ?>
+                                                    <?php foreach ($categories as $category): ?>
+                                                        <option value="<?php echo $category['name']; ?>" 
+                                                                <?php echo ($campaign['niche'] ?? '') === $category['name'] ? 'selected' : ''; ?>>
+                                                            <?php echo $category['name']; ?>
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
