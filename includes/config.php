@@ -55,6 +55,10 @@ try {
     die("Database connection error. Please try again later.");
 }
 
+// Applica il timezone configurato
+require_once __DIR__ . '/system_functions.php';
+apply_system_timezone();
+
 // Path constants
 define('ROOT_PATH', BASE_DIR);
 define('INCLUDES_PATH', BASE_DIR . '/includes');

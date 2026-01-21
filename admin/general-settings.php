@@ -4,6 +4,7 @@ require_once '../includes/functions.php';
 require_once '../includes/general_settings_functions.php';
 require_once '../includes/social_network_functions.php';
 require_once '../includes/category_functions.php';
+require_once '../includes/system_functions.php';
 
 $page_title = "Impostazioni Generali";
 $active_menu = "general-settings";
@@ -35,6 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['error_message'] = $result['error'];
             }
         }
+    } elseif ($action === 'save_system_settings') {
+        $result = save_system_settings($_POST);
     }
     
     if (isset($result) && $result['success']) {
@@ -51,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Carica le impostazioni correnti
 $categories_settings = get_categories_settings();
 $social_networks_settings = get_social_networks_settings();
+$system_settings = get_system_settings();
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -84,14 +88,22 @@ $social_networks_settings = get_social_networks_settings();
     <div class="col-12">
         <!-- Nav tabs -->
         <ul class="nav nav-tabs" id="generalSettingsTabs" role="tablist">
+            <!-- TAB CATEGORIE (primo tab, attivo di default) -->
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories" type="button" role="tab" aria-controls="categories" aria-selected="true">
                     <i class="fas fa-tags me-2"></i>Categorie
                 </button>
             </li>
+            <!-- TAB SOCIAL NETWORK (secondo tab) -->
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="social-networks-tab" data-bs-toggle="tab" data-bs-target="#social-networks" type="button" role="tab" aria-controls="social-networks" aria-selected="false">
                     <i class="fas fa-share-alt me-2"></i>Social Network
+                </button>
+            </li>
+            <!-- TAB SISTEMA (terzo e ultimo tab) -->
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab" aria-controls="system" aria-selected="false">
+                    <i class="fas fa-cog me-2"></i>Sistema
                 </button>
             </li>
         </ul>
@@ -301,6 +313,138 @@ $social_networks_settings = get_social_networks_settings();
                     <input type="hidden" name="social_id" id="delete_social_id">
                 </form>
             </div>
+
+            <!-- TAB SISTEMA -->
+            <div class="tab-pane fade" id="system" role="tabpanel" aria-labelledby="system-tab">
+                <form method="POST" id="systemForm">
+                    <input type="hidden" name="action" value="save_system_settings">
+                    
+                    <!-- Sezione Impostazioni Sistema -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-clock me-2"></i>Impostazioni Data e Ora
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Configura il fuso orario e le impostazioni di data/ora della piattaforma.</p>
+                            
+                            <div class="row">
+                                <!-- Fuso Orario -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Fuso Orario *</label>
+                                    <select class="form-select" name="timezone" required>
+                                        <?php
+                                        $timezones = DateTimeZone::listIdentifiers();
+                                        $current_timezone = $system_settings['timezone'] ?? 'Europe/Rome';
+                                        foreach ($timezones as $tz):
+                                        ?>
+                                            <option value="<?php echo htmlspecialchars($tz); ?>" <?php echo $tz === $current_timezone ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($tz); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="form-text">Seleziona il fuso orario della piattaforma</div>
+                                </div>
+                                
+                                <!-- Formato Data -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Formato Data</label>
+                                    <select class="form-select" name="date_format">
+                                        <?php
+                                        $date_formats = [
+                                            'd/m/Y' => 'GG/MM/AAAA (italiano)',
+                                            'Y-m-d' => 'AAAA-MM-GG (internazionale)',
+                                            'm/d/Y' => 'MM/GG/AAAA (USA)',
+                                            'd F Y' => 'GG Mese AAAA (esteso)'
+                                        ];
+                                        $current_date_format = $system_settings['date_format'] ?? 'd/m/Y';
+                                        foreach ($date_formats as $format => $label):
+                                        ?>
+                                            <option value="<?php echo htmlspecialchars($format); ?>" <?php echo $format === $current_date_format ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($label); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <!-- Formato Ora -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Formato Ora</label>
+                                    <select class="form-select" name="time_format">
+                                        <?php
+                                        $time_formats = [
+                                            'H:i' => '24 ore (es: 14:30)',
+                                            'h:i A' => '12 ore (es: 02:30 PM)'
+                                        ];
+                                        $current_time_format = $system_settings['time_format'] ?? 'H:i';
+                                        foreach ($time_formats as $format => $label):
+                                        ?>
+                                            <option value="<?php echo htmlspecialchars($format); ?>" <?php echo $format === $current_time_format ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($label); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <!-- Sincronizzazione Automatica -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Sincronizzazione Orario</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input type="checkbox" class="form-check-input" name="auto_sync_time" value="1" <?php echo (!empty($system_settings['auto_sync_time']) && $system_settings['auto_sync_time'] === '1') ? 'checked' : ''; ?>>
+                                        <label class="form-check-label">Sincronizza automaticamente con server NTP</label>
+                                    </div>
+                                    <div class="form-text">Se attivo, sincronizza periodicamente l'orario con server NTP</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Anteprima Data/Ora -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0">Anteprima Data/Ora</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="timePreview">
+                                                <?php
+                                                // Mostra l'ora attuale con le impostazioni correnti
+                                                $timezone = $system_settings['timezone'] ?? 'Europe/Rome';
+                                                $date_format = $system_settings['date_format'] ?? 'd/m/Y';
+                                                $time_format = $system_settings['time_format'] ?? 'H:i';
+                                                
+                                                try {
+                                                    $date = new DateTime('now', new DateTimeZone($timezone));
+                                                    echo '<p class="mb-1"><strong>Data:</strong> ' . $date->format($date_format) . '</p>';
+                                                    echo '<p class="mb-1"><strong>Ora:</strong> ' . $date->format($time_format) . '</p>';
+                                                    echo '<p class="mb-0"><strong>Fuso orario:</strong> ' . $timezone . ' (UTC' . $date->format('P') . ')</p>';
+                                                } catch (Exception $e) {
+                                                    echo '<p class="text-danger">Errore nella visualizzazione dell\'ora</p>';
+                                                }
+                                                ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pulsanti di salvataggio -->
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Sistema
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="refreshTimePreview()">
+                                <i class="fas fa-sync-alt me-2"></i>Aggiorna Anteprima
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -361,6 +505,17 @@ document.addEventListener('DOMContentLoaded', function() {
             removeCategoryItem(button);
         }
     });
+    
+    // Aggiorna anteprima timezone quando cambiano i campi
+    const systemForm = document.getElementById('systemForm');
+    if (systemForm) {
+        ['timezone', 'date_format', 'time_format'].forEach(field => {
+            const element = systemForm.querySelector(`[name="${field}"]`);
+            if (element) {
+                element.addEventListener('change', refreshTimePreview);
+            }
+        });
+    }
 });
 
 // Funzioni per Categorie
@@ -495,6 +650,69 @@ function addSocialNetworkItem() {
 function removeSocialNetworkItem(button) {
     const item = button.closest('.social-network-item');
     item.remove();
+}
+
+// Funzione per aggiornare l'anteprima data/ora
+function refreshTimePreview() {
+    const form = document.getElementById('systemForm');
+    const formData = new FormData(form);
+    
+    // Crea un oggetto con i dati del form
+    const data = {};
+    for (const [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    // Mostra l'anteprima basata sui valori attuali del form
+    try {
+        const timezone = data.timezone || 'Europe/Rome';
+        const dateFormat = data.date_format || 'd/m/Y';
+        const timeFormat = data.time_format || 'H:i';
+        
+        const now = new Date();
+        const date = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+        
+        // Formatta la data
+        let formattedDate = dateFormat
+            .replace('d', String(date.getDate()).padStart(2, '0'))
+            .replace('m', String(date.getMonth() + 1).padStart(2, '0'))
+            .replace('Y', date.getFullYear())
+            .replace('F', date.toLocaleString('it-IT', { month: 'long' }));
+        
+        // Formatta l'ora
+        let hours = date.getHours();
+        let minutes = String(date.getMinutes()).padStart(2, '0');
+        let formattedTime;
+        
+        if (timeFormat.includes('A')) {
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            formattedTime = timeFormat
+                .replace('h', String(hours).padStart(2, '0'))
+                .replace('i', minutes)
+                .replace('A', ampm);
+        } else {
+            formattedTime = timeFormat
+                .replace('H', String(hours).padStart(2, '0'))
+                .replace('i', minutes);
+        }
+        
+        // Calcola offset UTC
+        const offset = -date.getTimezoneOffset() / 60;
+        const offsetStr = `UTC${offset >= 0 ? '+' : ''}${offset}:00`;
+        
+        // Aggiorna l'anteprima
+        const preview = document.getElementById('timePreview');
+        preview.innerHTML = `
+            <p class="mb-1"><strong>Data:</strong> ${formattedDate}</p>
+            <p class="mb-1"><strong>Ora:</strong> ${formattedTime}</p>
+            <p class="mb-0"><strong>Fuso orario:</strong> ${timezone} (${offsetStr})</p>
+        `;
+    } catch (error) {
+        console.error('Errore aggiornamento anteprima:', error);
+        const preview = document.getElementById('timePreview');
+        preview.innerHTML = '<p class="text-danger">Errore nella visualizzazione dell\'anteprima</p>';
+    }
 }
 </script>
 
