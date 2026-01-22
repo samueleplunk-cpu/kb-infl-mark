@@ -87,6 +87,24 @@ try {
 }
 
 // =============================================
+// RECUPERO NAZIONI UTILIZZATE DAGLI INFLUENCER
+// =============================================
+$used_countries = [];
+try {
+    $stmt_countries = $pdo->query("
+        SELECT DISTINCT nationality 
+        FROM influencers 
+        WHERE nationality IS NOT NULL 
+        AND nationality != ''
+        ORDER BY nationality ASC
+    ");
+    $used_countries = $stmt_countries->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    error_log("Errore recupero nazioni: " . $e->getMessage());
+    // Continua senza filtri paese
+}
+
+// =============================================
 // PARAMETRI DI RICERCA E FILTRI
 // =============================================
 $search_query = $_GET['search'] ?? '';
@@ -96,6 +114,7 @@ $min_rate = $_GET['min_rate'] ?? '';
 $max_rate = $_GET['max_rate'] ?? '';
 $budget_filter = $_GET['budget'] ?? '';
 $min_rating = $_GET['min_rating'] ?? '';
+$country_filter = $_GET['country'] ?? ''; // NUOVO FILTRO
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 12; // Risultati per pagina
 $offset = ($page - 1) * $limit;
@@ -156,24 +175,6 @@ if (!empty($platform_filter)) {
     }
 }
 
-// GESTIONE RETROCOMPATIBILITÀ: supporto sia min_rate/max_rate che budget
-if (!empty($budget_filter) && is_numeric($budget_filter)) {
-    // Nuovo filtro: budget massimo (rate ≤ budget)
-    $where_conditions[] = "rate <= ?";
-    $params[] = $budget_filter;
-} else {
-    // Mantenimento compatibilità con i vecchi filtri
-    if (!empty($min_rate) && is_numeric($min_rate)) {
-        $where_conditions[] = "rate >= ?";
-        $params[] = $min_rate;
-    }
-    
-    if (!empty($max_rate) && is_numeric($max_rate)) {
-        $where_conditions[] = "rate <= ?";
-        $params[] = $max_rate;
-    }
-}
-
 // Filtro per rating minimo - MODIFICATO PER INTERVALLI PRECISI
 if (!empty($min_rating) && is_numeric($min_rating)) {
     // Calcola i limiti dell'intervallo in base al valore selezionato
@@ -189,6 +190,30 @@ if (!empty($min_rating) && is_numeric($min_rating)) {
         $where_conditions[] = "rating >= ? AND rating < ?";
         $params[] = $rating_min;
         $params[] = $rating_max;
+    }
+}
+
+// Filtro per paese (NUOVO FILTRO)
+if (!empty($country_filter)) {
+    $where_conditions[] = "nationality = ?";
+    $params[] = $country_filter;
+}
+
+// GESTIONE RETROCOMPATIBILITÀ: supporto sia min_rate/max_rate che budget
+if (!empty($budget_filter) && is_numeric($budget_filter)) {
+    // Nuovo filtro: budget massimo (rate ≤ budget)
+    $where_conditions[] = "rate <= ?";
+    $params[] = $budget_filter;
+} else {
+    // Mantenimento compatibilità con i vecchi filtri
+    if (!empty($min_rate) && is_numeric($min_rate)) {
+        $where_conditions[] = "rate >= ?";
+        $params[] = $min_rate;
+    }
+    
+    if (!empty($max_rate) && is_numeric($max_rate)) {
+        $where_conditions[] = "rate <= ?";
+        $params[] = $max_rate;
     }
 }
 
@@ -355,7 +380,24 @@ if ($brand_id && !empty($influencers)) {
                 </div>
             </div>
 
-            <div class="row align-items-end">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="country" class="form-label">Nazione</label>
+                    <select class="form-select" id="country" name="country">
+                        <option value="">Tutte le nazioni</option>
+                        <?php if (!empty($used_countries)): ?>
+                            <?php foreach ($used_countries as $country): ?>
+                                <option value="<?php echo htmlspecialchars($country); ?>" 
+                                    <?php echo $country_filter === $country ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($country); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <option value="" disabled>Nessuna nazione disponibile</option>
+                        <?php endif; ?>
+                    </select>
+                </div>
+
                 <div class="col-md-3">
                     <div class="mb-3">
                         <label for="budget" class="form-label d-flex justify-content-between">
@@ -375,8 +417,11 @@ if ($brand_id && !empty($influencers)) {
                         <input type="hidden" name="budget" value="<?php echo !empty($budget_filter) && is_numeric($budget_filter) ? $budget_filter : '0'; ?>">
                     </div>
                 </div>
+               <div class="col-md-6"></div>
+            </div>
 
-                <div class="col-md-9">
+            <div class="row align-items-end">
+                <div class="col-md-12">
                     <div class="d-flex gap-2 justify-content-end">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-search"></i> Cerca

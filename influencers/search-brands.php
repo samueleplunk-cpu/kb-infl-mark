@@ -34,6 +34,27 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 require_once dirname(__DIR__) . '/includes/category_functions.php';
 
 // =============================================
+// RECUPERO NAZIONI UTILIZZATE DAI BRAND
+// =============================================
+function get_used_countries($pdo) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT nationality 
+            FROM brands 
+            WHERE nationality IS NOT NULL 
+            AND nationality != '' 
+            ORDER BY nationality ASC
+        ");
+        $stmt->execute();
+        $countries = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return array_unique($countries); // Per sicurezza rimuove duplicati
+    } catch (PDOException $e) {
+        error_log("Errore recupero nazioni: " . $e->getMessage());
+        return [];
+    }
+}
+
+// =============================================
 // INCLUSIONE HEADER CON PERCORSO ASSOLUTO
 // =============================================
 $header_file = dirname(__DIR__) . '/includes/header.php';
@@ -59,10 +80,16 @@ if ($influencer_data) {
 $active_categories = get_active_categories($pdo);
 
 // =============================================
+// RECUPERO NAZIONI UTILIZZATE
+// =============================================
+$used_countries = get_used_countries($pdo);
+
+// =============================================
 // PARAMETRI DI RICERCA E FILTRI
 // =============================================
 $search_query = $_GET['search'] ?? '';
 $category_filter = $_GET['category'] ?? '';
+$country_filter = $_GET['country'] ?? '';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 12; // Risultati per pagina
 $offset = ($page - 1) * $limit;
@@ -100,6 +127,12 @@ if (!empty($category_filter)) {
         $where_conditions[] = "b.industry = ?";
         $params[] = $category_name;
     }
+}
+
+// NUOVO: Filtro per nazione
+if (!empty($country_filter) && in_array($country_filter, $used_countries)) {
+    $where_conditions[] = "b.nationality = ?";
+    $params[] = $country_filter;
 }
 
 // Query base con JOIN per dati utente
@@ -233,14 +266,14 @@ if ($influencer_id && !empty($brands)) {
                     <div class="mb-3"></div>
                     
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="search" class="form-label">Cerca per nome</label>
                             <input type="text" class="form-control" id="search" name="search" 
                                    value="<?php echo htmlspecialchars($search_query); ?>" 
                                    placeholder="Inserisci il nome del brand...">
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="category" class="form-label">Categoria</label>
                             <select class="form-select" id="category" name="category">
                                 <option value="">Tutte le categorie</option>
@@ -248,6 +281,19 @@ if ($influencer_id && !empty($brands)) {
                                     <option value="<?php echo htmlspecialchars($category['slug']); ?>" 
                                         <?php echo $category_filter === $category['slug'] ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($category['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="country" class="form-label">Nazione</label>
+                            <select class="form-select" id="country" name="country">
+                                <option value="">Tutte le nazioni</option>
+                                <?php foreach ($used_countries as $country): ?>
+                                    <option value="<?php echo htmlspecialchars($country); ?>" 
+                                        <?php echo $country_filter === $country ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($country); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
