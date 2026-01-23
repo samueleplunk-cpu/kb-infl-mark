@@ -43,8 +43,8 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
 $is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php';
 $is_general_settings_page = basename($_SERVER['PHP_SELF']) == 'general-settings.php';
 $is_communications_page = basename($_SERVER['PHP_SELF']) == 'communications.php'; // NUOVA VARIABILE PER COMUNICAZIONI
-// NUOVA VARIABILE PER AMMINISTRAZIONE
-$is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']);
+// NUOVA VARIABILE PER AMMINISTRAZIONE (AGGIUNTA 'internal-pages.php')
+$is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php', 'internal-pages.php']);
 // NUOVA VARIABILE PER TICKET
 $is_tickets_page = basename($_SERVER['PHP_SELF']) == 'tickets.php';
 
@@ -286,7 +286,7 @@ $open_tickets_count = get_open_tickets_count();
                             </a>
                         </li>
 
-                        <!-- NUOVO MENU: Amministrazione a tendina -->
+                        <!-- NUOVO MENU: Amministrazione a tendina - AGGIORNATO CON PAGINE INTERNE -->
                         <li class="nav-item">
                             <a class="nav-link <?php echo $is_administration_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
@@ -303,6 +303,13 @@ $open_tickets_count = get_open_tickets_count();
                                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'users.php' ? 'active' : ''; ?>" 
                                            href="/admin/users.php">
                                             <i class="fas fa-users-cog me-2"></i> Utenti Admin
+                                        </a>
+                                    </li>
+                                    <!-- NUOVA VOCE: Pagine interne -->
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'internal-pages.php' ? 'active' : ''; ?>" 
+                                           href="/admin/internal-pages.php">
+                                            <i class="fas fa-file-alt me-2"></i> Pagine interne
                                         </a>
                                     </li>
                                 </ul>
@@ -414,25 +421,52 @@ document.addEventListener('DOMContentLoaded', function() {
             return; // Salta completamente gli accordion marcati
         }
         
+        // Rimuovi l'event listener di Bootstrap e gestisci tutto manualmente
+        toggle.setAttribute('data-bs-toggle', '');
+        
         toggle.addEventListener('click', function(e) {
-            const target = document.querySelector(this.getAttribute('href'));
+            e.preventDefault();
+            e.stopPropagation();
             
-            if (target && target.classList.contains('show')) {
-                e.preventDefault();
-                e.stopPropagation();
+            const targetId = this.getAttribute('href');
+            const target = document.querySelector(targetId);
+            
+            if (!target) return;
+            
+            // Controlla se questo menu è attualmente aperto
+            const isCurrentlyOpen = target.classList.contains('show');
+            
+            // Se è aperto, chiudilo
+            if (isCurrentlyOpen) {
+                // Nascondi il target
+                target.classList.remove('show');
                 
-                const bsCollapse = bootstrap.Collapse.getInstance(target) || new bootstrap.Collapse(target, { toggle: false });
-                bsCollapse.hide();
+                // Aggiorna lo stato dell'elemento toggle
+                this.classList.add('collapsed');
+                this.setAttribute('aria-expanded', 'false');
             } else {
+                // Se è chiuso, chiudi tutti gli altri menu
                 dropdownToggles.forEach(otherToggle => {
                     if (otherToggle !== this && !otherToggle.closest('[data-exclude-sidebar-toggle="true"]')) {
-                        const otherTarget = document.querySelector(otherToggle.getAttribute('href'));
+                        const otherTargetId = otherToggle.getAttribute('href');
+                        const otherTarget = document.querySelector(otherTargetId);
+                        
                         if (otherTarget && otherTarget.classList.contains('show')) {
-                            const bsOtherCollapse = bootstrap.Collapse.getInstance(otherTarget) || new bootstrap.Collapse(otherTarget, { toggle: false });
-                            bsOtherCollapse.hide();
+                            otherTarget.classList.remove('show');
+                            
+                            // Aggiorna lo stato degli altri toggle
+                            otherToggle.classList.add('collapsed');
+                            otherToggle.setAttribute('aria-expanded', 'false');
                         }
                     }
                 });
+                
+                // Apri questo menu
+                target.classList.add('show');
+                
+                // Aggiorna lo stato dell'elemento toggle
+                this.classList.remove('collapsed');
+                this.setAttribute('aria-expanded', 'true');
             }
         });
     });

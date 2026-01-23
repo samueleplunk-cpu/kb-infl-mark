@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Pagine interne
+RewriteRule ^page/([a-z0-9-]+)/?$ /page.php?slug=$1 [L,QSA]
+
+# Alternative: se preferisci URL senza "page/"
+# RewriteRule ^([a-z0-9-]+)/?$ /page.php?slug=$1 [L,QSA]
