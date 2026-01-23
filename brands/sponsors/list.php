@@ -89,16 +89,18 @@ $total_sponsors = 0;
 $total_pages = 0;
 
 try {
-    // Query base - usando le colonne corrette dalla tabella influencers
+    // Query base - CORRETTA: Aggiunto LEFT JOIN con categories
     $query = "
         SELECT s.*, 
                i.full_name as influencer_name,
                i.profile_image,
                i.niche,
-               i.rating
+               i.rating,
+               c.name as category_display_name
         FROM sponsors s
         JOIN influencers i ON s.influencer_id = i.id
         JOIN users u ON i.user_id = u.id
+        LEFT JOIN categories c ON s.category = c.slug
         WHERE s.status = 'active' 
           AND u.is_active = 1 
           AND u.is_suspended = 0 
@@ -112,6 +114,7 @@ try {
         FROM sponsors s
         JOIN influencers i ON s.influencer_id = i.id
         JOIN users u ON i.user_id = u.id
+        LEFT JOIN categories c ON s.category = c.slug
         WHERE s.status = 'active' 
           AND u.is_active = 1 
           AND u.is_suspended = 0 
@@ -125,14 +128,11 @@ try {
     
     // Applica filtri
     if (!empty($search)) {
-        $query .= " AND (s.title LIKE ? OR s.description LIKE ? OR i.full_name LIKE ?)";
-        $count_query .= " AND (s.title LIKE ? OR s.description LIKE ? OR i.full_name LIKE ?)";
+        // MODIFICA: Cerca solo nel titolo dello sponsor
+        $query .= " AND s.title LIKE ?";
+        $count_query .= " AND s.title LIKE ?";
         $search_term = "%$search%";
         $params[] = $search_term;
-        $params[] = $search_term;
-        $params[] = $search_term;
-        $count_params[] = $search_term;
-        $count_params[] = $search_term;
         $count_params[] = $search_term;
     }
     
@@ -224,6 +224,45 @@ if ($brand && !empty($sponsors)) {
 }
 
 // =============================================
+// RECUPERO CONVERSAZIONI ESISTENTI PER GLI INFLUENCER DEGLI SPONSOR
+// =============================================
+$existing_conversations = [];
+if ($brand && !empty($sponsors)) {
+    // Estrai tutti gli ID influencer dagli sponsor
+    $influencer_ids = array_column($sponsors, 'influencer_id');
+    
+    // Recupera tutte le conversazioni esistenti in una sola query
+    try {
+        if (!empty($influencer_ids)) {
+            // Crea i placeholder per la query
+            $placeholders = implode(',', array_fill(0, count($influencer_ids), '?'));
+            
+            $stmt = $pdo->prepare("
+                SELECT influencer_id, id as conversation_id 
+                FROM conversations 
+                WHERE brand_id = ? 
+                AND influencer_id IN ($placeholders)
+                AND campaign_id IS NULL
+            ");
+            
+            // Parametri: brand_id + tutti gli influencer_ids
+            $params_conv = array_merge([$brand['id']], $influencer_ids);
+            $stmt->execute($params_conv);
+            
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Trasforma in array associativo influencer_id => conversation_id
+            foreach ($results as $row) {
+                $existing_conversations[$row['influencer_id']] = $row['conversation_id'];
+            }
+        }
+    } catch (PDOException $e) {
+        error_log("Errore recupero conversazioni esistenti: " . $e->getMessage());
+        // Continua senza conversazioni esistenti
+    }
+}
+
+// =============================================
 // INCLUSIONE HEADER
 // =============================================
 $header_file = dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
@@ -251,67 +290,6 @@ require_once $header_file;
         </div>
         <?php endif; ?>
 
-        <!-- Filtri -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Filtri</h5>
-            </div>
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Cerca</label>
-                        <input type="text" name="search" class="form-control" 
-                               value="<?php echo htmlspecialchars($search); ?>" 
-                               placeholder="Titolo, descrizione o influencer...">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Categoria</label>
-                        <select name="category" class="form-select">
-                            <option value="">Tutte</option>
-                            <?php
-                            // CATEGORIE DINAMICHE DAL DATABASE
-                            foreach ($active_categories as $category): ?>
-                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
-                                    <?php echo $category_filter === $category['name'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($category['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Budget Min</label>
-                        <input type="number" name="min_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($min_budget); ?>" 
-                               placeholder="€ Min">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Budget Max</label>
-                        <input type="number" name="max_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($max_budget); ?>" 
-                               placeholder="€ Max">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Piattaforma</label>
-                        <select name="platform" class="form-select">
-                            <option value="">Tutte</option>
-                            <?php
-                            $social_networks = get_active_social_networks();
-                            foreach ($social_networks as $social): ?>
-                                <option value="<?php echo $social['slug']; ?>" 
-                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($social['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Filtra</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Statistiche -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card text-white bg-primary">
@@ -349,6 +327,64 @@ require_once $header_file;
             </div>
         </div>
 
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Filtri</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Cerca</label>
+                        <input type="text" name="search" class="form-control" 
+                               value="<?php echo htmlspecialchars($search); ?>" 
+                               placeholder="Titolo sponsor...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Categoria</label>
+                        <select name="category" class="form-select">
+                            <option value="">Tutte</option>
+                            <?php
+                            // CATEGORIE DINAMICHE DAL DATABASE
+                            foreach ($active_categories as $category): 
+                                // Calcola lo slug se non presente
+                                $category_slug = $category['slug'] ?? '';
+                                if (!$category_slug && isset($category['name'])) {
+                                    // Crea slug dal nome (come fa il database)
+                                    $category_slug = strtolower($category['name']);
+                                    $category_slug = str_replace(' & ', '-', $category_slug);
+                                    $category_slug = preg_replace('/[^a-z0-9-]/', '-', $category_slug);
+                                    $category_slug = preg_replace('/-+/', '-', $category_slug);
+                                }
+                            ?>
+                                <option value="<?php echo htmlspecialchars($category_slug); ?>" 
+                                    <?php echo $category_filter === $category_slug ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($category['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Social Network</label>
+                        <select name="platform" class="form-select">
+                            <option value="">Tutte</option>
+                            <?php
+                            $social_networks = get_active_social_networks();
+                            foreach ($social_networks as $social): ?>
+                                <option value="<?php echo $social['slug']; ?>" 
+                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($social['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary w-50">Cerca</button>
+                        <a href="list.php" class="btn btn-outline-secondary w-50">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Lista Sponsor -->
         <?php if (empty($sponsors)): ?>
             <div class="card">
@@ -380,56 +416,57 @@ require_once $header_file;
                             </div>
                             <div class="card-body">
                                 <!-- Informazioni influencer -->
-                                 <div class="d-flex align-items-center mb-3">
-    <?php 
-    // Determina se c'è un'immagine profilo
-    $has_profile_image = !empty($sponsor['profile_image']);
-    $profile_image_path = '';
-    
-    if ($has_profile_image) {
-        $profile_image_path = $sponsor['profile_image'];
-        
-        // Correzione percorso immagine profilo
-        if (strpos($profile_image_path, 'profiles/') === 0) {
-            $profile_image_path = '/uploads/' . $profile_image_path;
-        } elseif (strpos($profile_image_path, '/profiles/') === 0) {
-            $profile_image_path = '/uploads' . $profile_image_path;
-        } elseif (strpos($profile_image_path, '/') !== 0 && strpos($profile_image_path, 'http') !== 0) {
-            $profile_image_path = '/uploads/profiles/' . $profile_image_path;
-        }
-    }
-    ?>
-    
-    <!-- Contenitore immagine profilo - UN SOLO ELEMENTO -->
-    <div class="me-2" style="width: 40px; height: 40px;">
-        <?php if ($has_profile_image): ?>
-            <!-- SOLO immagine profilo personalizzata -->
-            <img src="<?php echo htmlspecialchars($profile_image_path); ?>" 
-                 class="rounded-circle" 
-                 width="40" 
-                 height="40" 
-                 alt="<?php echo htmlspecialchars($sponsor['influencer_name']); ?>"
-                 style="object-fit: cover; width: 100%; height: 100%;"
-                 onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=\'rounded-circle bg-secondary d-flex align-items-center justify-content-center\' style=\'width: 40px; height: 40px;\'><i class=\'fas fa-user text-white\'></i></div>';">
-        <?php else: ?>
-            <!-- SOLO placeholder se non c'è immagine profilo -->
-            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
-                 style="width: 40px; height: 40px;">
-                <i class="fas fa-user text-white"></i>
-            </div>
-        <?php endif; ?>
-    </div>
-    
-    <div>
-        <strong><?php echo htmlspecialchars($sponsor['influencer_name']); ?></strong><br>
-        <small class="text-muted">
-            <?php echo htmlspecialchars($sponsor['niche'] ?? 'N/A'); ?>
-            <?php if ($sponsor['rating']): ?>
-                • <i class="fas fa-star text-warning"></i> <?php echo number_format($sponsor['rating'], 1); ?>
-            <?php endif; ?>
-        </small>
-    </div>
-</div>
+                                <div class="d-flex align-items-center mb-3">
+                                    <?php 
+                                    // Determina se c'è un'immagine profilo
+                                    $has_profile_image = !empty($sponsor['profile_image']);
+                                    $profile_image_path = '';
+                                    
+                                    if ($has_profile_image) {
+                                        $profile_image_path = $sponsor['profile_image'];
+                                        
+                                        // Correzione percorso immagine profilo
+                                        if (strpos($profile_image_path, 'profiles/') === 0) {
+                                            $profile_image_path = '/uploads/' . $profile_image_path;
+                                        } elseif (strpos($profile_image_path, '/profiles/') === 0) {
+                                            $profile_image_path = '/uploads' . $profile_image_path;
+                                        } elseif (strpos($profile_image_path, '/') !== 0 && strpos($profile_image_path, 'http') !== 0) {
+                                            $profile_image_path = '/uploads/profiles/' . $profile_image_path;
+                                        }
+                                    }
+                                    ?>
+                                    
+                                    <!-- Contenitore immagine profilo - UN SOLO ELEMENTO -->
+                                    <div class="me-2" style="width: 40px; height: 40px;">
+                                        <?php if ($has_profile_image): ?>
+                                            <!-- SOLO immagine profilo personalizzata -->
+                                            <img src="<?php echo htmlspecialchars($profile_image_path); ?>" 
+                                                 class="rounded-circle" 
+                                                 width="40" 
+                                                 height="40" 
+                                                 alt="<?php echo htmlspecialchars($sponsor['influencer_name']); ?>"
+                                                 style="object-fit: cover; width: 100%; height: 100%;"
+                                                 onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=\'rounded-circle bg-secondary d-flex align-items-center justify-content-center\' style=\'width: 40px; height: 40px;\'><i class=\'fas fa-user text-white\'></i></div>';">
+                                        <?php else: ?>
+                                            <!-- SOLO placeholder se non c'è immagine profilo -->
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div>
+                                        <div class="d-flex align-items-center">
+                                            <strong class="me-2"><?php echo htmlspecialchars($sponsor['influencer_name']); ?></strong>
+                                            <?php if ($sponsor['rating']): ?>
+                                                <small class="text-muted">
+                                                    • <i class="fas fa-star text-warning"></i> <?php echo number_format($sponsor['rating'], 1); ?>
+                                                </small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
                                 
                                 <p class="card-text text-muted small mb-3">
                                     <?php echo strlen($sponsor['description']) > 100 ? 
@@ -442,9 +479,24 @@ require_once $header_file;
                                     <?php echo number_format($sponsor['budget'], 0); ?> €
                                 </div>
                                 
+                                <!-- MODIFICA: Visualizzazione corretta della categoria -->
                                 <div class="mb-2">
                                     <strong>Categoria:</strong>
-                                    <?php echo ucfirst(htmlspecialchars($sponsor['category'])); ?>
+                                    <?php 
+                                    // SOLUZIONE DEFINITIVA:
+                                    // 1. Usa category_display_name se disponibile dal join
+                                    // 2. Altrimenti trasforma lo slug in nome leggibile
+                                    // 3. Usa htmlspecialchars per sicurezza
+                                    
+                                    if (!empty($sponsor['category_display_name'])) {
+                                        // Usa il nome dalla tabella categories (es: "Beauty & Makeup")
+                                        echo htmlspecialchars($sponsor['category_display_name']);
+                                    } else {
+                                        // Fallback: trasforma lo slug in nome
+                                        $category_name = str_replace('-', ' & ', $sponsor['category']);
+                                        echo htmlspecialchars(ucwords(strtolower($category_name)));
+                                    }
+                                    ?>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -512,12 +564,61 @@ require_once $header_file;
                                         </button>
                                     </div>
                                     
-                                    <!-- RIGA INFERIORE: Pulsante Contatta -->
-                                    <a href="#" 
-                                       class="btn btn-success btn-sm w-100"
-                                       onclick="contactInfluencer(<?php echo $sponsor['id']; ?>, '<?php echo htmlspecialchars(addslashes($sponsor['influencer_name'])); ?>')">
-                                        Contatta Influencer
-                                    </a>
+                                    <!-- RIGA INFERIORE: Pulsanti Conversazione -->
+                                    <?php
+                                    // Controlla se esiste già una conversazione con questo influencer
+                                    $conversation_id = $existing_conversations[$sponsor['influencer_id']] ?? false;
+                                    ?>
+                                    
+                                    <?php if (!$conversation_id): ?>
+                                        <!-- Se NON esiste conversazione: mostra pulsante per inviare messaggio -->
+                                        <button type="button" 
+                                                class="btn btn-primary btn-sm w-100 send-message-btn"
+                                                data-influencer-id="<?php echo $sponsor['influencer_id']; ?>"
+                                                data-influencer-name="<?php echo htmlspecialchars($sponsor['influencer_name']); ?>"
+                                                data-sponsor-id="<?php echo $sponsor['id']; ?>"
+                                                data-sponsor-title="<?php echo htmlspecialchars($sponsor['title']); ?>">
+                                            <i class="fas fa-envelope"></i> Invia Messaggio
+                                        </button>
+                                        
+                                        <!-- Form fallback per no-JavaScript (nascosto) -->
+                                        <form method="POST" action="../start-conversation.php" class="d-none no-js-form">
+                                            <input type="hidden" name="influencer_id" value="<?php echo $sponsor['influencer_id']; ?>">
+                                            <input type="hidden" name="sponsor_id" value="<?php echo $sponsor['id']; ?>">
+                                            <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($sponsor['influencer_name']); ?>, sono interessato al tuo sponsor '<?php echo htmlspecialchars($sponsor['title']); ?>'!">
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                <i class="fas fa-envelope"></i> Invia Messaggio
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <!-- Se ESISTE conversazione: mostra pulsanti per andare alla conversazione o nuovo messaggio -->
+                                        <div class="d-flex gap-1">
+                                            <a href="../messages/conversation.php?id=<?php echo $conversation_id; ?>" 
+                                               class="btn btn-primary btn-sm flex-grow-1">
+                                                <i class="fas fa-comments"></i> Vai alla Conversazione
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-outline-primary btn-sm send-message-btn"
+                                                    data-influencer-id="<?php echo $sponsor['influencer_id']; ?>"
+                                                    data-influencer-name="<?php echo htmlspecialchars($sponsor['influencer_name']); ?>"
+                                                    data-sponsor-id="<?php echo $sponsor['id']; ?>"
+                                                    data-sponsor-title="<?php echo htmlspecialchars($sponsor['title']); ?>"
+                                                    data-conversation-id="<?php echo $conversation_id; ?>"
+                                                    title="Aggiungi nuovo messaggio">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Form fallback per no-JavaScript (nascosto) -->
+                                        <form method="POST" action="../start-conversation.php" class="d-none no-js-form">
+                                            <input type="hidden" name="influencer_id" value="<?php echo $sponsor['influencer_id']; ?>">
+                                            <input type="hidden" name="sponsor_id" value="<?php echo $sponsor['id']; ?>">
+                                            <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($sponsor['influencer_name']); ?>, vorrei aggiungere qualcosa alla nostra conversazione sullo sponsor '<?php echo htmlspecialchars($sponsor['title']); ?>'">
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                <i class="fas fa-envelope"></i> Invia Messaggio
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -561,21 +662,206 @@ require_once $header_file;
     </div>
 </div>
 
-<script>
-function contactInfluencer(sponsorId, influencerName) {
-    // Qui puoi implementare la logica per contattare l'influencer
-    // Per ora mostriamo un alert
-    alert('Funzionalità "Contatta Influencer" per lo sponsor ID: ' + sponsorId + '\nInfluencer: ' + influencerName + '\n\nQuesta funzionalità sarà implementata in futuro per inviare messaggi agli influencer.');
-    
-    // In futuro, questa funzione potrebbe:
-    // 1. Aprire un modal con un form per inviare un messaggio
-    // 2. Reindirizzare a una pagina di messaggistica
-    // 3. Inviare una richiesta AJAX per creare una conversazione
-}
+<!-- MODAL PER MESSAGGIO PERSONALIZZATO -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="messageForm" method="POST" action="../start-conversation.php">
+                <input type="hidden" name="influencer_id" id="modalInfluencerId">
+                <input type="hidden" name="sponsor_id" id="modalSponsorId">
+                <input type="hidden" name="initial_message" id="modalInitialMessage">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel">Invia Messaggio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="customMessage" class="form-label">
+                            Scrivi il tuo messaggio:
+                        </label>
+                        <textarea class="form-control" 
+                                  id="customMessage" 
+                                  name="custom_message" 
+                                  rows="6" 
+                                  maxlength="1000" 
+                                  placeholder="Es: Ciao, sono interessato al tuo sponsor '[Titolo Sponsor]'. Vorrei discutere una possibile collaborazione..."
+                                  required></textarea>
+                        <div class="d-flex justify-content-end mt-2">
+                            <span class="text-muted small">
+                                <span id="charCount">0</span>/1000 caratteri
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Invia Messaggio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-// Gestione Preferiti Sponsor con AJAX
+<script>
+// Nascondi form fallback se JavaScript è abilitato
 document.addEventListener('DOMContentLoaded', function() {
-    // Trova tutti i pulsanti preferiti sponsor
+    // Nascondi form fallback se JavaScript è abilitato
+    document.querySelectorAll('.no-js-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    
+    // Mostra i pulsanti per il modal
+    document.querySelectorAll('.send-message-btn').forEach(btn => {
+        btn.style.display = btn.classList.contains('send-message-btn') ? '' : 'none';
+    });
+    
+    // Gestione click sui pulsanti "Invia Messaggio" e "Nuovo Messaggio"
+    document.querySelectorAll('.send-message-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const influencerId = this.getAttribute('data-influencer-id');
+            const influencerName = this.getAttribute('data-influencer-name');
+            const sponsorId = this.getAttribute('data-sponsor-id');
+            const sponsorTitle = this.getAttribute('data-sponsor-title');
+            const conversationId = this.getAttribute('data-conversation-id');
+            
+            // Imposta i valori nel modal
+            document.getElementById('modalInfluencerId').value = influencerId;
+            document.getElementById('modalSponsorId').value = sponsorId;
+            
+            // Imposta messaggio predefinito personalizzato
+            const defaultMessage = conversationId 
+                ? `Ciao ${influencerName}, vorrei aggiungere qualcosa alla nostra conversazione sullo sponsor '${sponsorTitle}': `
+                : `Ciao ${influencerName}, sono interessato al tuo sponsor '${sponsorTitle}' e vorrei discutere una possibile collaborazione!`;
+            
+            document.getElementById('customMessage').value = defaultMessage;
+            document.getElementById('modalInitialMessage').value = defaultMessage;
+            
+            // Se esiste conversazione, aggiorna il titolo del modal
+            if (conversationId) {
+                document.getElementById('messageModalLabel').textContent = 'Aggiungi Nuovo Messaggio';
+                // Aggiungi campo nascosto per conversation_id (se necessario per il backend)
+                if (!document.getElementById('existingConversationId')) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.id = 'existingConversationId';
+                    input.name = 'existing_conversation_id';
+                    input.value = conversationId;
+                    document.getElementById('messageForm').appendChild(input);
+                } else {
+                    document.getElementById('existingConversationId').value = conversationId;
+                }
+            } else {
+                document.getElementById('messageModalLabel').textContent = 'Invia Messaggio';
+                // Rimuovi campo hidden se presente
+                const existingInput = document.getElementById('existingConversationId');
+                if (existingInput) {
+                    existingInput.remove();
+                }
+            }
+            
+            // Resetta e aggiorna contatore caratteri
+            updateCharCount();
+            
+            // Mostra il modal
+            const messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+            messageModal.show();
+            
+            // Focus sul textarea
+            setTimeout(() => {
+                document.getElementById('customMessage').focus();
+            }, 500);
+        });
+    });
+    
+    // Gestione contatore caratteri
+    const textarea = document.getElementById('customMessage');
+    const charCount = document.getElementById('charCount');
+    
+    function updateCharCount() {
+        if (!textarea || !charCount) return;
+        
+        const length = textarea.value.length;
+        charCount.textContent = length;
+        
+        // Cambia colore se supera 900 caratteri
+        if (length > 900) {
+            charCount.className = 'text-warning';
+        } else if (length > 990) {
+            charCount.className = 'text-danger';
+        } else {
+            charCount.className = '';
+        }
+    }
+    
+    if (textarea) {
+        textarea.addEventListener('input', updateCharCount);
+        
+        // Aggiorna il messaggio nascosto quando l'utente modifica il textarea
+        textarea.addEventListener('input', function() {
+            document.getElementById('modalInitialMessage').value = this.value;
+        });
+        
+        // Inizializza contatore
+        updateCharCount();
+    }
+    
+    // Validazione del form nel modal
+    const messageForm = document.getElementById('messageForm');
+    if (messageForm) {
+        messageForm.addEventListener('submit', function(e) {
+            const message = document.getElementById('customMessage')?.value.trim();
+            
+            if (!message) {
+                e.preventDefault();
+                alert('Per favore, scrivi un messaggio prima di inviare.');
+                document.getElementById('customMessage')?.focus();
+                return false;
+            }
+            
+            if (message.length > 1000) {
+                e.preventDefault();
+                alert('Il messaggio è troppo lungo (max 1000 caratteri).');
+                return false;
+            }
+            
+            // Mostra indicatore di caricamento
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Invio in corso...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+    
+    // Reset modal quando viene nascosto
+    document.getElementById('messageModal')?.addEventListener('hidden.bs.modal', function () {
+        // Ripristina titolo default
+        document.getElementById('messageModalLabel').textContent = 'Invia Messaggio';
+        
+        // Rimuovi campo hidden se presente
+        const existingInput = document.getElementById('existingConversationId');
+        if (existingInput) {
+            existingInput.remove();
+        }
+        
+        // Resetta form
+        const form = document.getElementById('messageForm');
+        if (form) {
+            form.reset();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Invia Messaggio';
+                submitBtn.disabled = false;
+            }
+        }
+    });
+    
+    // Gestione Preferiti Sponsor con AJAX
     const favoriteSponsorButtons = document.querySelectorAll('.favorite-sponsor-btn');
     
     favoriteSponsorButtons.forEach(button => {
@@ -722,6 +1008,59 @@ document.addEventListener('DOMContentLoaded', function() {
     width: 40px;
     padding-left: 0.25rem;
     padding-right: 0.25rem;
+}
+
+/* Stili per il modal e textarea */
+#customMessage {
+    resize: vertical;
+    min-height: 120px;
+}
+
+#charCount.text-warning {
+    font-weight: bold;
+}
+
+#charCount.text-danger {
+    font-weight: bold;
+}
+
+/* Pulsante nel modal */
+.modal-footer .btn {
+    min-width: 100px;
+}
+
+/* Adatta form no-JS */
+.no-js-form {
+    margin-top: 5px;
+}
+
+/* Stili per pulsanti conversazione esistente */
+.btn-primary.flex-grow-1 {
+    flex: 1 1 auto;
+}
+
+.btn-outline-primary.btn-sm {
+    width: 40px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Effetto hover che corrisponde esattamente a quello della pagina search-influencers.php */
+.btn-outline-primary.btn-sm:hover {
+    background-color: #0d6efd !important;
+    color: white !important;
+    border-color: #0d6efd !important;
+    transform: scale(1.05);
+}
+
+/* Tooltip personalizzato */
+[title] {
+    cursor: help;
+}
+
+.toast {
+    min-width: 250px;
 }
 </style>
 
