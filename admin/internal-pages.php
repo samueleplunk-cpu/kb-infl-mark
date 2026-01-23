@@ -41,7 +41,7 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPageModal">
-            <i class="fas fa-plus me-1"></i> Nuova Pagina
+            Nuova Pagina
         </button>
     </div>
 </div>
@@ -78,11 +78,11 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
                                     <strong><?php echo htmlspecialchars($page['title']); ?></strong>
                                 </td>
                                 <td>
-                                    <code>/page/<?php echo htmlspecialchars($page['slug']); ?></code>
+                                    <code>/<?php echo htmlspecialchars($page['slug']); ?></code>
                                     <br>
                                     <small class="text-muted">
-                                        <a href="<?php echo $base_url; ?>/page/<?php echo htmlspecialchars($page['slug']); ?>" target="_blank">
-                                            <i class="fas fa-external-link-alt me-1"></i>Vedi nel sito
+                                        <a href="<?php echo $base_url; ?>/<?php echo htmlspecialchars($page['slug']); ?>" target="_blank">
+                                            <i class="fas fa-external-link-alt me-1"></i>Anteprima
                                         </a>
                                     </small>
                                 </td>
@@ -100,9 +100,9 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
                                     <?php echo $page['updated_at'] ? date('d/m/Y H:i', strtotime($page['updated_at'])) : '-'; ?>
                                 </td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="btn-group btn-group-sm action-buttons">
                                         <!-- Anteprima -->
-                                        <a href="<?php echo $base_url; ?>/page/<?php echo htmlspecialchars($page['slug']); ?>" 
+                                        <a href="<?php echo $base_url; ?>/<?php echo htmlspecialchars($page['slug']); ?>" 
                                            class="btn btn-outline-info" 
                                            target="_blank"
                                            title="Anteprima">
@@ -125,20 +125,20 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
                                         
                                         <!-- Attiva/Disattiva -->
                                         <?php if ($page['is_active']): ?>
-                                            <button type="button" class="btn btn-outline-warning toggle-status"
-                                                    data-page-id="<?php echo $page['id']; ?>"
-                                                    data-action="deactivate"
-                                                    title="Disattiva">
-                                                <i class="fas fa-ban"></i>
-                                            </button>
-                                        <?php else: ?>
-                                            <button type="button" class="btn btn-outline-success toggle-status"
-                                                    data-page-id="<?php echo $page['id']; ?>"
-                                                    data-action="activate"
-                                                    title="Attiva">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        <?php endif; ?>
+    <button type="button" class="btn btn-outline-warning toggle-status"
+            data-page-id="<?php echo $page['id']; ?>"
+            data-action="deactivate"
+            title="Disattiva">
+        <i class="fas fa-toggle-off"></i>
+    </button>
+<?php else: ?>
+    <button type="button" class="btn btn-outline-success toggle-status"
+            data-page-id="<?php echo $page['id']; ?>"
+            data-action="activate"
+            title="Attiva">
+        <i class="fas fa-toggle-on"></i>
+    </button>
+<?php endif; ?>
                                         
                                         <!-- Elimina -->
                                         <button type="button" class="btn btn-outline-danger delete-page"
@@ -176,7 +176,7 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
                         <div class="col-md-6 mb-3">
                             <label for="slug" class="form-label">Slug/URL *</label>
                             <div class="input-group">
-                                <span class="input-group-text">/page/</span>
+                                <span class="input-group-text">/</span>
                                 <input type="text" class="form-control" id="slug" name="slug" required>
                             </div>
                             <div class="form-text">Solo lettere minuscole, numeri e trattini (es: termini-e-condizioni)</div>
@@ -240,7 +240,7 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
                         <div class="col-md-6 mb-3">
                             <label for="edit_slug" class="form-label">Slug/URL *</label>
                             <div class="input-group">
-                                <span class="input-group-text">/page/</span>
+                                <span class="input-group-text">/</span>
                                 <input type="text" class="form-control" id="edit_slug" name="slug" required>
                             </div>
                             <div class="form-text">Solo lettere minuscole, numeri e trattini</div>
@@ -289,6 +289,18 @@ $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : 
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/lang/summernote-it-IT.min.js"></script>
 
 <script>
+// Aggiungi stile CSS per i pulsanti delle azioni
+const style = document.createElement('style');
+style.textContent = `
+    .action-buttons .btn {
+        margin-right: 4px;
+    }
+    .action-buttons .btn:last-child {
+        margin-right: 0;
+    }
+`;
+document.head.appendChild(style);
+
 // Inizializza Summernote
 $(document).ready(function() {
     $('.summernote').summernote({

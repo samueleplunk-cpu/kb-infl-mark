@@ -1,39 +1,20 @@
 <?php
 // page.php - Router per le pagine interne
 
-// Percorso assoluto per config - USA __DIR__ per ottenere la directory corrente
+// Percorso assoluto per config
 $config_file = __DIR__ . '/includes/config.php';
-
-// DEBUG: Visualizza il percorso (rimuovi in produzione)
-// error_log("Config file path: " . $config_file);
 
 if (file_exists($config_file)) {
     require_once $config_file;
 } else {
-    // Prova percorso alternativo - più comune per strutture standard
+    // Prova percorso alternativo
     $config_file_alt = dirname(__DIR__) . '/includes/config.php';
     if (file_exists($config_file_alt)) {
         require_once $config_file_alt;
     } else {
-        // Per debugging, mostra il percorso corretto
-        $possible_paths = [
-            __DIR__ . '/includes/config.php',
-            dirname(__DIR__) . '/includes/config.php',
-            realpath(__DIR__ . '/../includes/config.php'),
-            realpath(__DIR__ . '/../../includes/config.php'),
-            $_SERVER['DOCUMENT_ROOT'] . '/includes/config.php'
-        ];
-        
-        error_log("Config file not found. Tried paths:");
-        foreach ($possible_paths as $path) {
-            error_log("- " . $path);
-        }
-        
-        // Messaggio utente semplice
         http_response_code(500);
         echo "<h1>Errore di configurazione</h1>";
         echo "<p>Il file di configurazione non è stato trovato. Contatta l'amministratore.</p>";
-        echo "<p><small>File cercato in: " . htmlspecialchars($config_file) . "</small></p>";
         exit();
     }
 }
@@ -112,11 +93,17 @@ if (!$page) {
     exit();
 }
 
-// Imposta il titolo della pagina
-$page_title = $page['meta_title'] ?: $page['title'];
+// Imposta le variabili per l'header
+$page_title = !empty($page['meta_title']) ? $page['meta_title'] : $page['title'];
+$page_description = !empty($page['meta_description']) ? $page['meta_description'] : '';
 
-// Buffer per catturare l'header
-ob_start();
+// Imposta Open Graph tags (URL aggiornato senza /page/)
+$og_tags = '
+    <meta property="og:title" content="' . htmlspecialchars($page_title) . '">
+    <meta property="og:description" content="' . htmlspecialchars($page_description) . '">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="' . htmlspecialchars('https://' . $_SERVER['HTTP_HOST'] . '/' . $slug) . '">
+';
 
 // Includi header
 $header_file = __DIR__ . '/includes/header.php';
@@ -128,25 +115,6 @@ if (file_exists($header_file)) {
         require_once $header_file_alt;
     }
 }
-
-$header_content = ob_get_clean();
-
-// Aggiungi meta description se presente
-if (!empty($page['meta_description'])) {
-    $meta_description = '<meta name="description" content="' . htmlspecialchars($page['meta_description']) . '">';
-    $header_content = str_replace('</title>', '</title>' . PHP_EOL . '    ' . $meta_description, $header_content);
-}
-
-// Aggiungi Open Graph meta tags per condivisione social
-$og_tags = '
-    <meta property="og:title" content="' . htmlspecialchars($page_title) . '">
-    <meta property="og:description" content="' . htmlspecialchars($page['meta_description'] ?? $page_title) . '">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="' . htmlspecialchars('https://' . $_SERVER['HTTP_HOST'] . '/page/' . $slug) . '">
-';
-$header_content = str_replace('</title>', '</title>' . PHP_EOL . '    ' . $og_tags, $header_content);
-
-echo $header_content;
 ?>
 
 <!-- Contenuto della pagina -->
@@ -177,10 +145,8 @@ echo $header_content;
             </div>
             
             <!-- Contenuto HTML -->
-            <div class="page-content card border-0 shadow-sm">
-                <div class="card-body">
-                    <?php echo $page['content']; ?>
-                </div>
+            <div class="page-content">
+                <?php echo $page['content']; ?>
             </div>
             
             <!-- Link per tornare alla home -->

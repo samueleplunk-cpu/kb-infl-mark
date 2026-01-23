@@ -1,7 +1,12 @@
 RewriteEngine On
 
-# Pagine interne
-RewriteRule ^page/([a-z0-9-]+)/?$ /page.php?slug=$1 [L,QSA]
+# Redirect 301 per URL vecchi con /page/ -> nuova struttura
+RewriteRule ^page/([a-z0-9-]+)/?$ /$1 [L,R=301,QSA]
 
-# Alternative: se preferisci URL senza "page/"
-# RewriteRule ^([a-z0-9-]+)/?$ /page.php?slug=$1 [L,QSA]
+# Nuovo routing per pagine interne (senza /page/)
+RewriteRule ^([a-z0-9-]+)/?$ /page.php?slug=$1 [L,QSA]
+
+# Eccezioni: escludi directory/file esistenti
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-l

@@ -1,5 +1,4 @@
 <?php
-// includes/header.php
 
 // Percorso assoluto per config
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -117,13 +116,40 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer' && 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Influencer Marketplace</title>
-	<link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <title>
+        <?php
+        // Priorità per il titolo della pagina:
+        // 1. $page_title (impostata da page.php o altre pagine)
+        // 2. $meta_title (impostata da altre pagine che non usano $page_title)  
+        // 3. Titolo predefinito
+        if (isset($page_title) && !empty($page_title)) {
+            echo htmlspecialchars($page_title);
+        } elseif (isset($meta_title) && !empty($meta_title)) {
+            echo htmlspecialchars($meta_title);
+        } else {
+            echo 'Influencer Marketplace';
+        }
+        ?>
+    </title>
+    
+    <?php if (isset($page_description) && !empty($page_description)): ?>
+    <meta name="description" content="<?php echo htmlspecialchars($page_description); ?>">
+    <?php elseif (isset($meta_description) && !empty($meta_description)): ?>
+    <meta name="description" content="<?php echo htmlspecialchars($meta_description); ?>">
+    <?php endif; ?>
+    
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="/favicon.ico">
     <meta name="msapplication-TileImage" content="/favicon.ico">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <?php if (isset($og_tags) && !empty($og_tags)): ?>
+    <!-- Open Graph tags (se forniti da page.php) -->
+    <?php echo $og_tags; ?>
+    <?php endif; ?>
+    
     <style>
         .navbar-nav .nav-link {
             position: relative;
