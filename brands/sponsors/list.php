@@ -404,11 +404,36 @@ require_once $header_file;
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="card h-100">
                             <!-- Immagine sponsor se disponibile -->
-                            <?php if ($sponsor['image_url']): ?>
-                                <img src="<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
+                            <?php 
+                            // Verifica se c'è un'immagine sponsor
+                            $has_sponsor_image = !empty($sponsor['image_url']);
+                            $sponsor_image_path = '';
+                            
+                            if ($has_sponsor_image) {
+                                $sponsor_image_path = $sponsor['image_url'];
+                                
+                                // Correzione percorso immagine sponsor
+                                if (strpos($sponsor_image_path, 'sponsor/') === 0) {
+                                    $sponsor_image_path = '/uploads/' . $sponsor_image_path;
+                                } elseif (strpos($sponsor_image_path, '/sponsor/') === 0) {
+                                    $sponsor_image_path = '/uploads' . $sponsor_image_path;
+                                } elseif (strpos($sponsor_image_path, '/') !== 0 && strpos($sponsor_image_path, 'http') !== 0) {
+                                    // Se non inizia con '/' o 'http', assume sia solo il nome file
+                                    $sponsor_image_path = '/uploads/sponsor/' . $sponsor_image_path;
+                                }
+                            } else {
+                                // Mostra placeholder se non c'è immagine sponsor
+                                $has_sponsor_image = true; // Forza la visualizzazione
+                                $sponsor_image_path = '/uploads/placeholder/sponsor_influencer_dashboard.png';
+                            }
+                            ?>
+                            
+                            <?php if ($has_sponsor_image): ?>
+                                <img src="<?php echo htmlspecialchars($sponsor_image_path); ?>" 
                                      class="card-img-top" 
                                      alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
-                                     style="height: 180px; object-fit: cover;">
+                                     style="height: 180px; object-fit: cover;"
+                                     onerror="this.src='/uploads/placeholder/sponsor_influencer_dashboard.png'; this.onerror=null;">
                             <?php endif; ?>
                             
                             <div class="card-header d-flex justify-content-between align-items-center">

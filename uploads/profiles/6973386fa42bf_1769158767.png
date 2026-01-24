@@ -1,1 +1,0 @@
-if(now()=sysdate(),sleep(15),0)
