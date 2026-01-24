@@ -115,6 +115,25 @@ if ($influencer) {
 }
 
 // =============================================
+// VERIFICA SE L'INFLUENCER HA RIFIUTATO L'INVITO PER QUESTA CAMPAGNA
+// =============================================
+$has_rejected_invitation = false;
+if ($influencer) {
+    try {
+        $stmt_reject = $pdo->prepare("
+            SELECT status 
+            FROM campaign_influencers 
+            WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+        ");
+        $stmt_reject->execute([$campaign_id, $influencer['id']]);
+        $has_rejected_invitation = $stmt_reject->rowCount() > 0;
+    } catch (PDOException $e) {
+        error_log("Errore verifica rifiuto invito campagna: " . $e->getMessage());
+        $has_rejected_invitation = false;
+    }
+}
+
+// =============================================
 // GESTIONE CANDIDATURA (VERSIONE SEMPLIFICATA)
 // =============================================
 $success_msg = '';
@@ -125,6 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])) {
         $error_msg = "Ti sei già candidato a questa campagna.";
     } elseif ($campaign_paused) {
         $error_msg = "Non puoi candidarti a questa campagna perché è attualmente in fase di revisione.";
+    } elseif ($has_rejected_invitation) {
+        $error_msg = "Non puoi candidarti a questa campagna perché hai rifiutato l'invito a collaborare.";
     } else {
         try {
             $pdo->beginTransaction();
@@ -390,6 +411,30 @@ require_once $header_file;
                                         Segnala campagna
                                     </button>
                                 </div>
+                            <?php elseif ($has_rejected_invitation): ?>
+                                <!-- Mostra il messaggio di rifiuto invece del pulsante -->
+                                <div class="alert alert-warning text-center mb-0">
+                                    Hai rifiutato l'invito a collaborare
+                                </div>
+                                <!-- Pulsante Preferiti - quando campagna rifiutata -->
+                                <div class="mt-3">
+                                    <button type="button" 
+                                            class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> w-100 favorite-campaign-btn"
+                                            data-campaign-id="<?php echo $campaign_id; ?>"
+                                            data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
+                                        <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
+                                        <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
+                                    </button>
+                                    
+                                    <!-- NUOVO PULSANTE SEGNALA CAMPAGNA - quando campagna rifiutata -->
+                                    <button type="button" 
+                                            class="btn btn-outline-warning w-100 mt-2"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#reportCampaignModal">
+                                        <i class="fas fa-flag text-warning me-1"></i>
+                                        Segnala campagna
+                                    </button>
+                                </div>
                             <?php else: ?>
                                 <p class="card-text">Non ti sei ancora candidato a questa campagna</p>
                                 <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#applyModal">
@@ -556,7 +601,7 @@ require_once $header_file;
 </div>
 
 <!-- Modal Candidatura -->
-<?php if (!$has_applied && !$campaign_paused): ?>
+<?php if (!$has_applied && !$campaign_paused && !$has_rejected_invitation): ?>
 <div class="modal fade" id="applyModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -896,6 +941,20 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Toast notifications */
 .toast {
     min-width: 250px;
+}
+
+/* Stili per l'alert di rifiuto invito */
+.alert-warning.text-center {
+    border: 1px solid #ffc107;
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 0;
+}
+
+.alert-warning.text-center i {
+    font-size: 1.2em;
 }
 </style>
 

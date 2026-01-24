@@ -118,6 +118,42 @@ if (!empty($conversation['campaign_id'])) {
 }
 
 // =============================================
+// FUNZIONE PER VERIFICARE SE UN MESSAGGIO È INVITO
+// =============================================
+function isInviteMessage($message) {
+    // Controlla se il messaggio contiene frasi tipiche di un invito
+    $invitePatterns = [
+        'vorrei invitarti',
+        'ti invito a collaborare',
+        'invito alla campagna',
+        'collaborazione alla campagna',
+        'partecipare alla campagna'
+    ];
+    
+    $messageLower = strtolower($message);
+    foreach ($invitePatterns as $pattern) {
+        if (strpos($messageLower, $pattern) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// =============================================
+// VERIFICA SE L'INVITO È STATO RIFIUTATO
+// =============================================
+$invite_rejected = false;
+if (!empty($conversation['campaign_id'])) {
+    $reject_stmt = $pdo->prepare("
+        SELECT status 
+        FROM campaign_influencers 
+        WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+    ");
+    $reject_stmt->execute([$conversation['campaign_id'], $influencer_id]);
+    $invite_rejected = ($reject_stmt->rowCount() > 0);
+}
+
+// =============================================
 // RECUPERA MESSAGGI
 // =============================================
 $messages_stmt = $pdo->prepare("
@@ -146,6 +182,13 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
 // GESTIONE INVIO NUOVO MESSAGGIO
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && !empty(trim($_POST['message']))) {
+    // Controlla se l'invito è stato rifiutato
+    if ($invite_rejected) {
+        $_SESSION['error_message'] = "Non puoi inviare messaggi dopo aver rifiutato l'invito.";
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+    }
+    
     $new_message = trim($_POST['message']);
     
     try {
@@ -168,6 +211,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && !empty(
         
     } catch (Exception $e) {
         $_SESSION['error_message'] = "Errore nell'invio del messaggio: " . $e->getMessage();
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+    }
+}
+
+// =============================================
+// GESTIONE RIFIUTO INVITO
+// =============================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reject_invite'])) {
+    try {
+        // Verifica che ci sia una campagna associata
+        if (empty($conversation['campaign_id'])) {
+            $_SESSION['error_message'] = "Nessuna campagna associata a questa conversazione.";
+            header("Location: conversation.php?id=" . $conversation_id);
+            exit();
+        }
+        
+        // Verifica che l'influencer possa rifiutare (non abbia già rifiutato)
+        $check_stmt = $pdo->prepare("
+            SELECT status 
+            FROM campaign_influencers 
+            WHERE campaign_id = ? AND influencer_id = ?
+        ");
+        $check_stmt->execute([$conversation['campaign_id'], $influencer_id]);
+        $campaign_status = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$campaign_status) {
+            $_SESSION['error_message'] = "Nessun invito trovato per questa campagna.";
+            header("Location: conversation.php?id=" . $conversation_id);
+            exit();
+        }
+        
+        if ($campaign_status['status'] === 'rejected') {
+            $_SESSION['error_message'] = "Invito già rifiutato.";
+            header("Location: conversation.php?id=" . $conversation_id);
+            exit();
+        }
+        
+        // Aggiorna lo stato a 'rejected'
+        $update_stmt = $pdo->prepare("
+            UPDATE campaign_influencers 
+            SET status = 'rejected', updated_at = NOW() 
+            WHERE campaign_id = ? AND influencer_id = ?
+        ");
+        $update_stmt->execute([$conversation['campaign_id'], $influencer_id]);
+        
+        // Aggiungi un messaggio di sistema per informare il brand
+        $system_message = "L'influencer ha rifiutato l'invito alla campagna.";
+        
+        $message_stmt = $pdo->prepare("
+    INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at, is_system) 
+    VALUES (?, ?, 'system', ?, NOW(), 1)
+");
+        $message_stmt->execute([$conversation_id, 0, $system_message]);
+        
+        // Aggiorna timestamp conversazione
+        $update_conv_stmt = $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?");
+        $update_conv_stmt->execute([$conversation_id]);
+        
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+        
+    } catch (Exception $e) {
+        $_SESSION['error_message'] = "Errore durante il rifiuto dell'invito: " . $e->getMessage();
         header("Location: conversation.php?id=" . $conversation_id);
         exit();
     }
@@ -263,6 +370,13 @@ require_once $header_file;
                                     <?php endif; ?>
                                 </small>
                             <?php endif; ?>
+                            
+                            <?php if ($invite_rejected): ?>
+                                <div class="alert alert-danger mt-2 p-2" style="font-size: 0.9rem;">
+                                    <i class="fas fa-ban me-1"></i>
+                                    <strong>Invito rifiutato</strong> - La conversazione è in sola lettura
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -312,14 +426,26 @@ require_once $header_file;
                             $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
                             $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
                             
+                            // Verifica se questo è un messaggio di sistema
+                            $is_system_message = isset($message['is_system']) && $message['is_system'] == 1;
+                            
+                            // Verifica se questo è un messaggio di invito del brand
+                            $is_brand_invite = (!$is_own_message && 
+                                               $message['sender_type'] === 'brand' && 
+                                               !empty($conversation['campaign_id']) && 
+                                               isInviteMessage($message['message']) &&
+                                               !$is_system_message);
+                            
+                            // Verifica se l'invito è già stato rifiutato
+                            $show_reject_button = ($is_brand_invite && !$invite_rejected && !$is_system_message);
                             ?>
                             
                             <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
                                 <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
-                                    <div class="message-bubble <?php echo $bubble_class; ?> rounded-3 p-3 position-relative" 
-                                         style="max-width: 70%;">
-                                        <!-- Nome mittente per i messaggi del brand -->
-                                        <?php if (!$is_own_message): ?>
+                                    <div class="message-bubble <?php echo $is_system_message ? 'bg-light border' : $bubble_class; ?> rounded-3 p-3 position-relative" 
+                                         style="max-width: 70%; <?php echo $is_system_message ? 'border-left: 4px solid #6c757d; font-style: italic;' : ''; ?>">
+                                        <!-- Nome mittente per i messaggi del brand (non per i messaggi di sistema) -->
+                                        <?php if (!$is_own_message && !$is_system_message): ?>
                                             <div class="sender-name mb-1">
                                                 <strong><?php 
                                                     if ($message['sender_type'] === 'brand') {
@@ -333,12 +459,31 @@ require_once $header_file;
                                                     }
                                                 ?></strong>
                                             </div>
+                                        <?php elseif ($is_system_message): ?>
+                                            <div class="sender-name mb-1">
+                                                <strong><i class="fas fa-info-circle me-1"></i> Sistema</strong>
+                                            </div>
                                         <?php endif; ?>
                                         
                                         <!-- Contenuto messaggio -->
                                         <div class="message-text">
                                             <?php echo nl2br(htmlspecialchars($message['message'])); ?>
                                         </div>
+                                        
+                                        <!-- Pulsante Rifiuta per messaggi di invito -->
+                                        <?php if ($show_reject_button): ?>
+                                            <div class="mt-3 pt-2 border-top">
+                                                <form method="POST" action="" class="reject-form" onsubmit="return confirmRejectInvite();">
+                                                    <input type="hidden" name="reject_invite" value="1">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                        <i class="fas fa-times me-1"></i> Rifiuta Invito
+                                                    </button>
+                                                    <small class="text-muted ms-2">
+                                                        Rifiutando, la conversazione verrà chiusa
+                                                    </small>
+                                                </form>
+                                            </div>
+                                        <?php endif; ?>
                                         
                                         <!-- Data e ora -->
                                         <div class="message-time mt-2">
@@ -365,23 +510,35 @@ require_once $header_file;
         <!-- FORM INVIO MESSAGGIO -->
         <div class="card">
             <div class="card-body">
-                <form method="POST" action="" id="message-form">
-                    <div class="input-group">
-                        <textarea name="message" class="form-control" placeholder="Scrivi il tuo messaggio..." 
-                                  rows="3" required id="message-input" 
-                                  placeholder="Scrivi il tuo messaggio...<?php echo empty($messages) ? ' Presentati e chiedi informazioni sulla collaborazione!' : ''; ?>"></textarea>
-                        <button type="submit" class="btn btn-primary" id="send-button">
-                            <i class="fas fa-paper-plane me-1"></i> Invia
-                        </button>
+                <?php if ($invite_rejected): ?>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-ban me-2"></i>
+                        <strong>Invito rifiutato</strong> - Non puoi più inviare messaggi in questa conversazione.
                     </div>
-                    <div class="mt-2 d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Premi Invio per inviare, Shift+Invio per andare a capo
-                        </small>
-                        <small class="text-muted" id="char-count">0/1000 caratteri</small>
+                <?php elseif ($brand_deleted): ?>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-user-slash me-2"></i>
+                        <strong>Account brand eliminato</strong> - Non puoi inviare messaggi.
                     </div>
-                </form>
+                <?php else: ?>
+                    <form method="POST" action="" id="message-form">
+                        <div class="input-group">
+                            <textarea name="message" class="form-control" placeholder="Scrivi il tuo messaggio..." 
+                                      rows="3" required id="message-input" 
+                                      placeholder="Scrivi il tuo messaggio...<?php echo empty($messages) ? ' Presentati e chiedi informazioni sulla collaborazione!' : ''; ?>"></textarea>
+                            <button type="submit" class="btn btn-primary" id="send-button">
+                                <i class="fas fa-paper-plane me-1"></i> Invia
+                            </button>
+                        </div>
+                        <div class="mt-2 d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Premi Invio per inviare, Shift+Invio per andare a capo
+                            </small>
+                            <small class="text-muted" id="char-count">0/1000 caratteri</small>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -441,19 +598,31 @@ require_once $header_file;
     background: #a8a8a8;
 }
 
-/* Indicatore nuovi messaggi */
-.new-message-indicator {
-    position: sticky;
-    top: 10px;
-    background: #007bff;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    z-index: 10;
-    text-align: center;
-    margin: 0 auto;
-    width: fit-content;
+/* Pulsante rifiuto */
+.reject-form {
+    background: rgba(220, 53, 69, 0.05);
+    border-radius: 5px;
+    padding: 8px;
+    margin-top: 10px;
+}
+
+.reject-form button {
+    transition: all 0.3s ease;
+}
+
+.reject-form button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3);
+}
+
+/* Messaggio di sistema */
+.system-message {
+    background-color: #f8f9fa;
+    border-left: 4px solid #6c757d;
+    padding: 10px;
+    margin: 10px 0;
+    font-style: italic;
+    color: #6c757d;
 }
 
 .char-count-warning {
@@ -495,6 +664,11 @@ function updateCharCount() {
             charCount.classList.remove('char-count-warning');
         }
     }
+}
+
+// Conferma rifiuto invito
+function confirmRejectInvite() {
+    return confirm('Sei sicuro di voler rifiutare questo invito?\n\nRifiutando:\n• Non potrai più inviare messaggi in questa conversazione\n• Non potrai essere reinvitato per la stessa campagna\n• Lo stato della campagna cambierà in "Rifiutato"');
 }
 
 // Scroll al caricamento della pagina

@@ -442,15 +442,35 @@ require_once $header_file;
                                     </div>
                                     
                                     <!-- RIGA INFERIORE: Pulsante Candidati/Già Candidato -->
-                                    <?php if (!$campaign['has_applied']): ?>
+                                    <?php 
+                                    // Verifica se l'influencer ha rifiutato l'invito per questa campagna
+                                    $has_rejected_invitation = false;
+                                    try {
+                                        $stmt_reject = $pdo->prepare("
+                                            SELECT status 
+                                            FROM campaign_influencers 
+                                            WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+                                        ");
+                                        $stmt_reject->execute([$campaign['id'], $influencer['id']]);
+                                        $has_rejected_invitation = $stmt_reject->rowCount() > 0;
+                                    } catch (PDOException $e) {
+                                        error_log("Errore verifica rifiuto invito campagna: " . $e->getMessage());
+                                        $has_rejected_invitation = false;
+                                    }
+
+                                    if (!$campaign['has_applied'] && !$has_rejected_invitation): ?>
                                         <a href="view.php?id=<?php echo $campaign['id']; ?>&apply=1" 
                                            class="btn btn-success btn-sm w-100">
                                             Candidati Ora
                                         </a>
-                                    <?php else: ?>
+                                    <?php elseif ($campaign['has_applied']): ?>
                                         <button class="btn btn-success btn-sm w-100" disabled>
                                             Già Candidato
                                         </button>
+                                    <?php elseif ($has_rejected_invitation): ?>
+                                        <span class="text-muted small w-100 d-block text-center">
+                                            Hai rifiutato l'invito a collaborare
+                                        </span>
                                     <?php endif; ?>
                                 </div>
                             </div>

@@ -78,6 +78,23 @@ if (!$conversation) {
 }
 
 // =============================================
+// VERIFICA STATO CAMPAGNA SE PRESENTE
+// =============================================
+$campaign_rejected = false;
+if (!empty($conversation['campaign_id'])) {
+    $reject_stmt = $pdo->prepare("
+        SELECT status 
+        FROM campaign_influencers 
+        WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+    ");
+    $reject_stmt->execute([$conversation['campaign_id'], $conversation['influencer_id']]);
+    
+    if ($reject_stmt->rowCount() > 0) {
+        $campaign_rejected = true;
+    }
+}
+
+// =============================================
 // RECUPERA MESSAGGI
 // =============================================
 $messages_stmt = $pdo->prepare("
@@ -106,6 +123,13 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
 // GESTIONE INVIO NUOVO MESSAGGIO
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && !empty(trim($_POST['message']))) {
+    // Verifica se l'influencer ha rifiutato la campagna
+    if (!empty($conversation['campaign_id']) && $campaign_rejected) {
+        $_SESSION['error_message'] = "Non puoi inviare messaggi perché l'influencer ha rifiutato l'invito a questa campagna.";
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+    }
+    
     $new_message = trim($_POST['message']);
     
     try {
@@ -286,6 +310,7 @@ require_once $header_file;
         </div>
 
         <!-- FORM INVIO MESSAGGIO -->
+        <?php if (empty($conversation['campaign_id']) || !$campaign_rejected): ?>
         <div class="card">
             <div class="card-body">
                 <form method="POST" action="" id="message-form">
@@ -305,6 +330,15 @@ require_once $header_file;
                 </form>
             </div>
         </div>
+        <?php else: ?>
+        <div class="card border-secondary">
+            <div class="card-body text-center text-muted py-4">
+                <i class="fas fa-lock fa-2x mb-3"></i>
+                <p class="card-title mb-2">L'influencer non ha accettato l'invito a collaborare per questa campagna.</p>
+                <p class="card-text mb-0">Non è possibile inviare ulteriori messaggi in questa conversazione.</p>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 

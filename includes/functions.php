@@ -131,7 +131,36 @@ function startConversation($pdo, $brand_id, $influencer_id, $campaign_id = null,
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($existing) {
+            // Verifica se l'influencer ha rifiutato questa campagna
+            if ($campaign_id) {
+                $reject_stmt = $pdo->prepare("
+                    SELECT status 
+                    FROM campaign_influencers 
+                    WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+                ");
+                $reject_stmt->execute([$campaign_id, $influencer_id]);
+                
+                if ($reject_stmt->rowCount() > 0) {
+                    // L'influencer ha rifiutato questa campagna
+                    return false;
+                }
+            }
             return $existing['id']; // Restituisce ID conversazione esistente
+        }
+        
+        // Verifica se l'influencer ha già rifiutato questa campagna (per nuove conversazioni)
+        if ($campaign_id) {
+            $reject_stmt = $pdo->prepare("
+                SELECT status 
+                FROM campaign_influencers 
+                WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+            ");
+            $reject_stmt->execute([$campaign_id, $influencer_id]);
+            
+            if ($reject_stmt->rowCount() > 0) {
+                // L'influencer ha già rifiutato questa campagna, non creare nuova conversazione
+                return false;
+            }
         }
         
         // Crea nuova conversazione
@@ -269,14 +298,14 @@ function can_access_conversation($pdo, $conversation_id, $user_type, $user_id) {
     try {
         if ($user_type === 'brand') {
             $stmt = $pdo->prepare("
-                SELECT c.id 
+                SELECT c.id, c.campaign_id, c.influencer_id
                 FROM conversations c
                 JOIN brands b ON c.brand_id = b.id
                 WHERE c.id = ? AND b.user_id = ?
             ");
         } else if ($user_type === 'influencer') {
             $stmt = $pdo->prepare("
-                SELECT c.id 
+                SELECT c.id, c.campaign_id, c.influencer_id
                 FROM conversations c
                 JOIN influencers i ON c.influencer_id = i.id
                 WHERE c.id = ? AND i.user_id = ?
@@ -286,7 +315,29 @@ function can_access_conversation($pdo, $conversation_id, $user_type, $user_id) {
         }
         
         $stmt->execute([$conversation_id, $user_id]);
-        return $stmt->fetch() !== false;
+        $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$conversation) {
+            return false;
+        }
+        
+        // Per influencer: verifica se ha rifiutato la campagna
+        if ($user_type === 'influencer' && $conversation['campaign_id']) {
+            $reject_stmt = $pdo->prepare("
+                SELECT status 
+                FROM campaign_influencers 
+                WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+            ");
+            $reject_stmt->execute([$conversation['campaign_id'], $conversation['influencer_id']]);
+            
+            if ($reject_stmt->rowCount() > 0) {
+                // L'influencer ha rifiutato, ma può ancora visualizzare la conversazione in sola lettura
+                return true;
+            }
+        }
+        
+        return true;
+        
     } catch (Exception $e) {
         error_log("Errore nella verifica accesso conversazione: " . $e->getMessage());
         return false;
@@ -807,6 +858,22 @@ function conversationExists($pdo, $brand_id, $influencer_id, $campaign_id = null
         }
         
         $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($conversation && $campaign_id) {
+            // Verifica se l'influencer ha rifiutato questa campagna
+            $reject_stmt = $pdo->prepare("
+                SELECT status 
+                FROM campaign_influencers 
+                WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+            ");
+            $reject_stmt->execute([$campaign_id, $influencer_id]);
+            
+            if ($reject_stmt->rowCount() > 0) {
+                // L'influencer ha rifiutato questa campagna
+                return false;
+            }
+        }
+        
         return $conversation ? $conversation['id'] : false;
         
     } catch (PDOException $e) {
@@ -854,4 +921,56 @@ function getExistingConversationsForBrand($pdo, $brand_id, $influencer_ids) {
         return [];
     }
 }
-?>
+
+/**
+ * Verifica se un influencer ha rifiutato una campagna specifica
+ */
+function hasInfluencerRejectedCampaign($pdo, $campaign_id, $influencer_id) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT status 
+            FROM campaign_influencers 
+            WHERE campaign_id = ? AND influencer_id = ? AND status = 'rejected'
+        ");
+        $stmt->execute([$campaign_id, $influencer_id]);
+        
+        return $stmt->rowCount() > 0;
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica rifiuto campagna: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se un influencer può essere invitato a una campagna
+ */
+function canInviteInfluencerToCampaign($pdo, $campaign_id, $influencer_id) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT status 
+            FROM campaign_influencers 
+            WHERE campaign_id = ? AND influencer_id = ?
+        ");
+        $stmt->execute([$campaign_id, $influencer_id]);
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Se non esiste record, può essere invitato
+        if (!$record) {
+            return true;
+        }
+        
+        // Se esiste ma è 'rejected', non può essere reinvitato
+        if ($record['status'] === 'rejected') {
+            return false;
+        }
+        
+        // Per altri stati, verifica la logica specifica
+        $blocked_states = ['rejected'];
+        return !in_array($record['status'], $blocked_states);
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica possibilità invito: " . $e->getMessage());
+        return false;
+    }
+}

@@ -131,7 +131,16 @@ $pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
         FROM campaign_influencers ci
         JOIN influencers i ON ci.influencer_id = i.id
         WHERE ci.campaign_id = ?
-        ORDER BY ci.match_score DESC, i.rating DESC, i.profile_views DESC
+        ORDER BY 
+            CASE ci.status
+                WHEN 'pending' THEN 1
+                WHEN 'invited' THEN 2
+                WHEN 'accepted' THEN 3
+                WHEN 'rejected' THEN 4
+                WHEN 'completed' THEN 5
+                ELSE 6
+            END,
+            ci.match_score DESC, i.rating DESC, i.profile_views DESC
         LIMIT ? OFFSET ?
     ");
     $stmt->bindValue(1, $campaign_id, PDO::PARAM_INT);
@@ -150,6 +159,13 @@ $pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         $influencer_id = intval($_POST['influencer_id']);
+        
+        // Verifica se l'influencer può essere invitato
+        if ($_POST['action'] === 'invite' && !canInviteInfluencerToCampaign($pdo, $campaign_id, $influencer_id)) {
+            $error = "Questo influencer ha già rifiutato l'invito e non può essere reinvitato.";
+            header("Location: campaign-details.php?id=" . $campaign_id . "&page=" . $current_page . "&error=" . urlencode($error));
+            exit();
+        }
         
         switch ($_POST['action']) {
             case 'invite':
@@ -184,10 +200,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ");
                     $stmt->execute([$conversation_id]);
                 }
-				
-				// === AGGIUNGI MESSAGGIO DI CONFERMA ===
-    $_SESSION['success_message'] = "Il tuo invito è stato inviato con successo. Attendi risposta dall'influencer.";
-	
+                
+                // Messaggio di successo
+                $_SESSION['success_message'] = "Il tuo invito è stato inviato con successo. Attendi risposta dall'influencer.";
                 break;
                 
             case 'update_status':
@@ -480,7 +495,17 @@ require_once $header_file;
                             <?php foreach ($status_counts as $status => $count): ?>
                                 <?php if ($count > 0): ?>
                                 <div class="d-flex justify-content-between mb-1">
-                                    <small><?php echo ucfirst($status); ?></small>
+                                    <small>
+                                        <?php 
+                                        $status_labels = [
+                                            'invited' => 'Invitati',
+                                            'accepted' => 'Accettati',
+                                            'rejected' => 'Rifiutati',
+                                            'completed' => 'Completati'
+                                        ];
+                                        echo $status_labels[$status] ?? ucfirst($status); 
+                                        ?>
+                                    </small>
                                     <small class="fw-bold"><?php echo $count; ?></small>
                                 </div>
                                 <?php endif; ?>
@@ -831,18 +856,32 @@ $is_changes_requested = $request['status'] === 'changes_requested';
                                             </span>
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm">
+                                            <div class="btn-group btn-group-sm gap-1">
                                                 <button type="button" class="btn btn-outline-primary" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#influencerModal<?php echo $influencer['influencer_id']; ?>">
-                                                    Dettagli
+                                                    Profilo
                                                 </button>
                                                 
                                                 <?php if ($influencer['status'] === 'pending' && $campaign['status'] === 'active'): ?>
-                                                    <button type="button" class="btn btn-outline-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#inviteModal<?php echo $influencer['influencer_id']; ?>">
-                                                        Invita
+                                                    <?php if (canInviteInfluencerToCampaign($pdo, $campaign_id, $influencer['influencer_id'])): ?>
+                                                        <button type="button" class="btn btn-outline-success" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#inviteModal<?php echo $influencer['influencer_id']; ?>">
+                                                            Invita
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button type="button" class="btn btn-danger" disabled>
+                                                            Rifiutato
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php elseif ($influencer['status'] === 'invited'): ?>
+                                                    <button type="button" class="btn btn-success" disabled>
+                                                        Invitato
+                                                    </button>
+                                                <?php elseif ($influencer['status'] === 'rejected'): ?>
+                                                    <button type="button" class="btn btn-danger" disabled>
+                                                        Rifiutato
                                                     </button>
                                                 <?php endif; ?>
                                             </div>
@@ -914,7 +953,7 @@ $is_changes_requested = $request['status'] === 'changes_requested';
                                     </div>
 
                                     <!-- Modal Invita Influencer -->
-                                    <?php if ($influencer['status'] === 'pending' && $campaign['status'] === 'active'): ?>
+                                    <?php if ($influencer['status'] === 'pending' && $campaign['status'] === 'active' && canInviteInfluencerToCampaign($pdo, $campaign_id, $influencer['influencer_id'])): ?>
                                     <div class="modal fade" id="inviteModal<?php echo $influencer['influencer_id']; ?>" tabindex="-1">
                                         <div class="modal-dialog">
                                             <div class="modal-content">
